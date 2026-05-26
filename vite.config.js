@@ -7,13 +7,13 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png'],
+      includeAssets: ['favicon-32.png', 'apple-touch-icon.png'],
       manifest: {
         name: 'Study Bible',
         short_name: 'Study Bible',
         description: 'KJV Bible with highlights, notes, and AI Scholar',
-        theme_color: '#0d1117',
-        background_color: '#0d1117',
+        theme_color: '#060c1c',
+        background_color: '#060c1c',
         display: 'standalone',
         orientation: 'portrait',
         scope: '/',
@@ -21,7 +21,8 @@ export default defineConfig({
         icons: [
           { src: 'pwa-192.png', sizes: '192x192', type: 'image/png' },
           { src: 'pwa-512.png', sizes: '512x512', type: 'image/png' },
-          { src: 'apple-touch-icon.png', sizes: '180x180', type: 'image/png' }
+          { src: 'pwa-512.png', sizes: '512x512', type: 'image/png', purpose: 'any maskable' },
+          { src: 'apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
         ]
       },
       workbox: {

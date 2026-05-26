@@ -1,12 +1,13 @@
 import sharp from 'sharp'
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
 
-const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="80" fill="#0d1117"/>
-  <text x="256" y="320" font-size="280" text-anchor="middle" fill="#7c9ef5">✝</text>
-</svg>`
+const __dirname = dirname(fileURLToPath(import.meta.url))
+const src = resolve(__dirname, '../bible_icon.png')
+const out = (name) => resolve(__dirname, '../public', name)
 
-const buf = Buffer.from(svg)
-await sharp(buf).resize(192).png().toFile('public/pwa-192.png')
-await sharp(buf).resize(512).png().toFile('public/pwa-512.png')
-await sharp(buf).resize(180).png().toFile('public/apple-touch-icon.png')
+await sharp(src).resize(512, 512).png().toFile(out('pwa-512.png'))
+await sharp(src).resize(192, 192).png().toFile(out('pwa-192.png'))
+await sharp(src).resize(180, 180).png().toFile(out('apple-touch-icon.png'))
+await sharp(src).resize(32, 32).png().toFile(out('favicon-32.png'))
 console.log('Icons generated.')
