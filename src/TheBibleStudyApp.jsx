@@ -22,22 +22,42 @@ const BOOKS_NT = [
 ];
 
 const DICT = {
-  "Agape":         { type:"Greek: ἀγάπη",                  def:"Unconditional, self-sacrificing love — the highest form in the NT. Distinct from phileo (brotherly) and eros (romantic). The word used in John 3:16 and 1 Corinthians 13." },
-  "Atonement":     { type:"Hebrew: כִּפֻּר (kippur)",        def:"The covering or propitiation of sin. The Day of Atonement (Yom Kippur) prefigured Christ's ultimate sacrifice on the cross (Lev. 16; Heb. 9:12)." },
-  "Covenant":      { type:"Hebrew: בְּרִית (bĕrît)",         def:"A solemn, binding agreement. God established covenants with Noah, Abraham, Moses, David, and the New Covenant through Christ's blood (Jer. 31:31; Luke 22:20)." },
-  "Faith":         { type:"Greek: πίστις (pistis)",         def:"Trust and reliance upon God. Saving faith is wholehearted confidence in Christ's person and work — not mere intellectual assent (Heb. 11:1; Eph. 2:8)." },
-  "Gospel":        { type:"Greek: εὐαγγέλιον (euangelion)", def:"Good news — the saving work of Jesus Christ: his death, burial, and resurrection for the forgiveness of sins (1 Cor. 15:1–4)." },
-  "Grace":         { type:"Greek: χάρις (charis)",          def:"Unmerited favour from God. A free gift of salvation given not through works but through faith in Christ. Grace is the very basis of redemption (Eph. 2:8)." },
-  "Justification": { type:"Greek: δικαίωσις (dikaiōsis)",   def:"God's judicial act of declaring a sinner righteous based on Christ's atoning work. Declared righteous — a forensic term. Not made righteous but counted righteous (Rom. 4:25)." },
-  "Messiah":       { type:"Hebrew: מָשִׁיחַ (māšîaḥ)",      def:"The Anointed One. Jesus is the promised Messiah — the ultimate Prophet, Priest, and King. The Greek equivalent is Christos (Dan. 9:25–26; John 1:41)." },
-  "Propitiation":  { type:"Greek: ἱλαστήριον (hilastērion)", def:"The turning away of God's wrath through Christ's sacrifice. Jesus satisfies the just demands of God's holiness on our behalf (1 John 2:2; Rom. 3:25)." },
+  "Agape":         { type:"Greek: ἀγάπη",                    def:"Unconditional, self-sacrificing love — the highest form in the NT. Distinct from phileo (brotherly) and eros (romantic). The word used in John 3:16 and 1 Corinthians 13." },
+  "Adonai":        { type:"Hebrew: אֲדֹנָי (ʾĂdōnāy)",        def:"Lord, Master, Sovereign. A title of supreme authority used for God, often substituted for the divine name YHWH when reading aloud. Reflects God's absolute lordship over all creation (Isa. 6:1; Ps. 110:1)." },
+  "Atonement":     { type:"Hebrew: כִּפֻּר (kippur)",          def:"The covering or propitiation of sin. The Day of Atonement (Yom Kippur) prefigured Christ's ultimate sacrifice on the cross (Lev. 16; Heb. 9:12)." },
+  "Chesed":        { type:"Hebrew: חֶסֶד (ḥesed)",            def:"Steadfast love, lovingkindness, loyal covenant devotion. The KJV renders it 'mercy' or 'lovingkindness.' It characterizes God's unbreakable faithfulness to his covenant people (Ps. 136; Lam. 3:22-23)." },
+  "Covenant":      { type:"Hebrew: בְּרִית (bĕrît)",           def:"A solemn, binding agreement. God established covenants with Noah, Abraham, Moses, David, and the New Covenant through Christ's blood (Jer. 31:31; Luke 22:20)." },
+  "Dabar":         { type:"Hebrew: דָּבָר (dābār)",            def:"Word, matter, thing. God's Dabar is creative and active — 'He sent his word and healed them' (Ps. 107:20). In Hebrew thought a spoken word carries power; God's Dabar accomplishes his purposes (Isa. 55:11)." },
+  "Doxa":          { type:"Greek: δόξα (doxa)",               def:"Glory, splendour, honour — the weightiness and radiance of God's nature made visible. The Doxa of God filled Solomon's temple and the incarnate Christ displayed it (John 1:14). All things are to be done for God's Doxa (1 Cor. 10:31)." },
+  "Eirene":        { type:"Greek: εἰρήνη (eirēnē)",            def:"Peace — the NT equivalent of Hebrew shalom. The peace Christ gives surpasses understanding (Phil. 4:7). He is our eirene, having broken down the wall of partition between Jew and Gentile (Eph. 2:14; John 14:27)." },
+  "Ekklesia":      { type:"Greek: ἐκκλησία (ekklēsia)",        def:"Church, assembly — literally 'the called-out ones.' Not a building but a people called out of darkness into God's marvellous light. Christ declared he would build his Ekklesia and the gates of Hades would not prevail (Matt. 16:18)." },
+  "Elohim":        { type:"Hebrew: אֱלֹהִים (ʾĕlōhîm)",        def:"The most common Hebrew name for God — a plural form consistently used with singular verbs, hinting at plurality within unity. Emphasizes God's might, creative power, and majesty (Gen. 1:1; Ps. 19:1)." },
+  "Emunah":        { type:"Hebrew: אֱמוּנָה (ʾĕmûnāh)",        def:"Faithfulness, steadfastness, firmness — the root of the word 'Amen.' Primarily an attribute of God (Ps. 89:8) but also called for in his people. The just shall live by his emunah (Hab. 2:4; Rom. 1:17)." },
+  "Faith":         { type:"Greek: πίστις (pistis)",           def:"Trust and reliance upon God. Saving faith is wholehearted confidence in Christ's person and work — not mere intellectual assent (Heb. 11:1; Eph. 2:8)." },
+  "Gospel":        { type:"Greek: εὐαγγέλιον (euangelion)",   def:"Good news — the saving work of Jesus Christ: his death, burial, and resurrection for the forgiveness of sins (1 Cor. 15:1–4)." },
+  "Grace":         { type:"Greek: χάρις (charis)",            def:"Unmerited favour from God. A free gift of salvation given not through works but through faith in Christ. Grace is the very basis of redemption (Eph. 2:8)." },
+  "Justification": { type:"Greek: δικαίωσις (dikaiōsis)",     def:"God's judicial act of declaring a sinner righteous based on Christ's atoning work. Declared righteous — a forensic term. Not made righteous but counted righteous (Rom. 4:25)." },
+  "Kabod":         { type:"Hebrew: כָּבוֹד (kābôd)",           def:"Glory, honour, weight, splendour. Describes the weighty, radiant presence of God that filled the Tabernacle and Temple. The NT Greek equivalent is doxa. The Kabod YHWH departed Israel in Ezekiel 10." },
+  "Kairos":        { type:"Greek: καιρός (kairos)",           def:"An appointed time, season, or opportune moment — in contrast to chronos (clock-time). Scripture is filled with divine kairos moments: 'in the fulness of the time God sent forth his Son' (Gal. 4:4). We are to redeem the kairos (Eph. 5:16)." },
+  "Logos":         { type:"Greek: λόγος (logos)",             def:"Word, reason, divine expression. John 1:1 declares the Logos was with God and was God, and in 1:14 the Logos became flesh — Jesus Christ. It communicates both personal divine being and the intelligent ordering of all things." },
+  "Messiah":       { type:"Hebrew: מָשִׁיחַ (māšîaḥ)",         def:"The Anointed One. Jesus is the promised Messiah — the ultimate Prophet, Priest, and King. The Greek equivalent is Christos (Dan. 9:25–26; John 1:41)." },
+  "Nephesh":       { type:"Hebrew: נֶפֶשׁ (nepeš)",            def:"Soul, life, living being. The whole person — body and breath together — not a separate immortal part. When God breathed into Adam he became a living nephesh (Gen. 2:7). Translated 'soul' or 'life' in the KJV." },
+  "Parousia":      { type:"Greek: παρουσία (parousia)",       def:"Presence, arrival, coming — the technical NT term for the Second Coming of Christ. His Parousia will be visible, bodily, and glorious (1 Thess. 4:15-17; Matt. 24:27). The church looks forward to the blessed hope of his appearing." },
+  "Pneuma":        { type:"Greek: πνεῦμα (pneuma)",           def:"Spirit, breath, wind — the Greek parallel to Hebrew ruach. Used of the Holy Spirit, human spirit, and spiritual beings. Jesus breathed on the disciples saying 'Receive ye the Holy Ghost' (John 20:22; 1 Cor. 2:11)." },
+  "Propitiation":  { type:"Greek: ἱλαστήριον (hilastērion)",  def:"The turning away of God's wrath through Christ's sacrifice. Jesus satisfies the just demands of God's holiness on our behalf (1 John 2:2; Rom. 3:25)." },
   "Redemption":    { type:"Greek: ἀπολύτρωσις (apolytrōsis)", def:"To buy back or ransom from bondage. Christ redeemed believers from the slavery of sin by paying the price — his blood — for their release (Eph. 1:7; Gal. 3:13)." },
-  "Repentance":    { type:"Greek: μετάνοια (metanoia)",     def:"A change of mind and direction — turning from sin to God. More than sorrow; it involves a genuine turning of will, heart, and action (Acts 2:38; 2 Cor. 7:10)." },
-  "Righteousness": { type:"Greek: δικαιοσύνη (dikaiosynē)", def:"Right standing before God. Imputed righteousness is received through faith in Christ — God declares the believer righteous on account of Christ's merits (Rom. 3:22)." },
-  "Salvation":     { type:"Greek: σωτηρία (sōtēria)",       def:"Deliverance from sin and its consequences. Encompasses justification (past), sanctification (present), and glorification (future) — God's complete rescue plan (Eph. 2:8)." },
-  "Sanctification":{ type:"Greek: ἁγιασμός (hagiasmos)",   def:"The ongoing process of becoming holy — set apart for God's purposes. Distinct from justification as the daily walk of growing in holiness (1 Thess. 4:3)." },
-  "Sheol":         { type:"Hebrew: שְׁאוֹל (šĕʾôl)",        def:"The realm of the dead in the OT. Often translated 'grave' or 'pit' in the KJV. Paralleled in NT with Hades — with distinct compartments before the cross (Luke 16:19–31)." },
-  "Trinity":       { type:"Theological term",               def:"One God in three co-equal, co-eternal Persons: Father, Son, and Holy Spirit. The doctrine is supported throughout both Testaments though the word is not in Scripture (Matt. 28:19)." },
+  "Repentance":    { type:"Greek: μετάνοια (metanoia)",       def:"A change of mind and direction — turning from sin to God. More than sorrow; it involves a genuine turning of will, heart, and action (Acts 2:38; 2 Cor. 7:10)." },
+  "Righteousness": { type:"Greek: δικαιοσύνη (dikaiosynē)",   def:"Right standing before God. Imputed righteousness is received through faith in Christ — God declares the believer righteous on account of Christ's merits (Rom. 3:22)." },
+  "Ruach":         { type:"Hebrew: רוּחַ (rûaḥ)",              def:"Spirit, breath, or wind. Used of the Holy Spirit, the human spirit, and God's creative breath. In Gen. 1:2 the Ruach Elohim hovers over the waters; in Gen. 2:7 God breathes into Adam the breath of life." },
+  "Salvation":     { type:"Greek: σωτηρία (sōtēria)",         def:"Deliverance from sin and its consequences. Encompasses justification (past), sanctification (present), and glorification (future) — God's complete rescue plan (Eph. 2:8)." },
+  "Sanctification":{ type:"Greek: ἁγιασμός (hagiasmos)",     def:"The ongoing process of becoming holy — set apart for God's purposes. Distinct from justification as the daily walk of growing in holiness (1 Thess. 4:3)." },
+  "Sarx":          { type:"Greek: σάρξ (sarx)",               def:"Flesh — the physical body, but especially in Paul's usage the sinful principle within fallen human nature that opposes the Spirit. Walking kata sarka leads to death; walking kata pneuma brings life (Rom. 8:13; Gal. 5:17)." },
+  "Shalom":        { type:"Hebrew: שָׁלוֹם (shālôm)",          def:"Peace, wholeness, completeness, and well-being — far more than absence of conflict. Shalom describes God's ideal state of restored harmony between Creator and creation, person and person (Num. 6:26; Isa. 9:6)." },
+  "Sheol":         { type:"Hebrew: שְׁאוֹל (šĕʾôl)",           def:"The realm of the dead in the OT. Often translated 'grave' or 'pit' in the KJV. Paralleled in NT with Hades — with distinct compartments before the cross (Luke 16:19–31)." },
+  "Telos":         { type:"Greek: τέλος (telos)",             def:"End, goal, completion, fulfilment — not merely termination but reaching the intended purpose. Christ is the telos of the law (Rom. 10:4). God works all things toward the telos of conforming believers to the image of his Son (Rom. 8:29)." },
+  "Torah":         { type:"Hebrew: תּוֹרָה (tôrāh)",           def:"Law, instruction, teaching — not merely legal code but divine guidance for life. Encompasses the five books of Moses and God's full instruction for covenant living. In Ps. 119 it is called a lamp and a light." },
+  "Trinity":       { type:"Theological term",                 def:"One God in three co-equal, co-eternal Persons: Father, Son, and Holy Spirit. The doctrine is supported throughout both Testaments though the word is not in Scripture (Matt. 28:19)." },
+  "Zoe":           { type:"Greek: ζωή (zōē)",                 def:"Life — particularly spiritual, eternal, divine life. Distinguished from bios (biological life) and psyche (soul-life). Christ is the Zoe (John 14:6). Eternal zoe is to know the only true God and Jesus Christ (John 17:3)." },
 };
 
 const THEMES = {
@@ -442,8 +462,8 @@ export default function BibleStudyApp() {
   const card    = { background:T.surface, borderRadius:14, padding:isDesktop?"16px 18px":"13px 15px", border:`1px solid ${T.border}`, marginBottom:10 };
   const inp     = { width:"100%", background:T.input, border:`1px solid ${T.border}`, borderRadius:10, padding:"9px 12px", fontSize:13, fontFamily:"inherit", color:T.text, outline:"none", boxSizing:"border-box" };
   const btn     = (v="def") => ({ background:v==="gold"?GOLD:v==="red"?"#C0392B":T.header, border:"none", borderRadius:20, padding:isTablet||isDesktop?"9px 18px":"7px 14px", color:v==="gold"?"#0D1B2A":"#F0EDE6", fontSize:isDesktop?13:12, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:5, transition:"opacity .15s", whiteSpace:"nowrap" });
-  const overlay = { position:"absolute", inset:0, background:"rgba(0,0,0,.6)", zIndex:20, display:"flex", flexDirection:"column", justifyContent:"flex-end" };
-  const sheet   = (big) => ({ background:T.surface, borderRadius:"20px 20px 0 0", padding:isTablet||isDesktop?22:16, maxHeight:big?"90%":"80%", overflowY:"auto", border:`2px solid ${GOLD}` });
+  const overlay = { position:"fixed", inset:0, background:"rgba(0,0,0,.6)", zIndex:20, display:"flex", flexDirection:"column", justifyContent:"flex-end" };
+  const sheet   = (big) => ({ background:T.surface, borderRadius:"20px 20px 0 0", padding:isTablet||isDesktop?22:16, maxHeight:big?"85vh":"70vh", overflowY:"auto", border:`2px solid ${GOLD}` });
 
   // ─── NAV ─────────────────────────────────────────────────────────────
   const NAV = [["read","ti-book-2","Read"],["notes","ti-notebook","Notes"],["ai","ti-sparkles","Ask AI"],["search","ti-search","Search"],["settings","ti-settings","Prefs"]];
@@ -476,7 +496,7 @@ export default function BibleStudyApp() {
 
   // ─── BOTTOM NAV ──────────────────────────────────────────────────────
   const BottomNav = () => (
-    <div style={{ background:T.header, padding:"8px 0 10px", display:"flex", borderTop:`1px solid rgba(201,168,76,.2)`, flexShrink:0 }}>
+    <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:50, background:T.header, padding:"8px 0 10px", display:"flex", borderTop:`1px solid rgba(201,168,76,.2)` }}>
       {NAV.map(([id,ico,lbl]) => (
         <div key={id} onClick={() => setTab(id)} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:2, cursor:"pointer", flex:1 }}>
           <i className={`ti ${ico}`} style={{ fontSize:21, color:tab===id?GOLD:T.muted }} aria-hidden="true"/>
@@ -708,7 +728,7 @@ export default function BibleStudyApp() {
                 <i className="ti ti-palette" style={{ fontSize:20, color:T.text }} aria-hidden="true"/>
                 <div><div style={{ fontSize:14, fontWeight:500, color:T.text }}>Theme</div><div style={{ fontSize:11, color:T.muted }}>Reading background</div></div>
               </div>
-              <div style={{ display:"flex", gap:5 }}>
+              <div style={{ display:"flex", gap:5, flexWrap:"wrap", justifyContent:"flex-end" }}>
                 {[["light","Light","#F8F4EC","#1C1C1E"],["dark","Dark","#0D1B2A","#F0EDE6"],["sepia","Sepia","#F5EFDC","#3B2D1E"]].map(([id,lbl,bg,fg]) => (
                   <button key={id} onClick={() => changeTheme(id)} style={{ borderRadius:8, padding:"6px 10px", fontSize:12, cursor:"pointer", border:`2px solid ${theme===id?GOLD:"transparent"}`, background:bg, color:fg, fontFamily:"inherit", fontWeight:theme===id?500:400 }}>{lbl}</button>
                 ))}
@@ -762,22 +782,25 @@ export default function BibleStudyApp() {
   );
 
   // ─── CONTENT ROUTER ──────────────────────────────────────────────────
+  // AIContent and SearchContent are called as plain functions (not JSX components)
+  // to prevent React from unmounting/remounting them on every render, which would
+  // dismiss the on-screen keyboard after each keystroke.
   const Content = () => {
     if (tab==="read")     return <ReaderContent/>;
     if (tab==="notes")    return <NotesContent/>;
-    if (tab==="ai")       return <AIContent/>;
-    if (tab==="search")   return <SearchContent/>;
+    if (tab==="ai")       return AIContent();
+    if (tab==="search")   return SearchContent();
     if (tab==="settings") return <SettingsContent/>;
     return null;
   };
 
   // ─── RENDER ──────────────────────────────────────────────────────────
   return (
-    <div ref={rootRef} style={{ width:"100%", background:T.bg, fontFamily:"'DM Sans','Segoe UI',sans-serif", position:"relative", minHeight:isMobile?580:640, display:"flex", flexDirection:"column" }}>
+    <div ref={rootRef} style={{ width:"100%", height:"100dvh", background:T.bg, fontFamily:"'DM Sans','Segoe UI',sans-serif", position:"relative", display:"flex", flexDirection:"column", overflow:"hidden" }}>
 
       <div style={{ display:"flex", flex:1, minHeight:0, height:"100%" }}>
         {!isMobile && <Sidebar/>}
-        <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0, overflow:"hidden" }}>
+        <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0, overflow:"hidden", paddingBottom:isMobile?60:0 }}>
           <Content/>
           {isMobile && <BottomNav/>}
         </div>
