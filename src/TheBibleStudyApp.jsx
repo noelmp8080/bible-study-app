@@ -519,9 +519,9 @@ function SettingsContent({ T, isDesktop, isMobile, isTablet, theme, changeTheme,
                 <i className="ti ti-palette" style={{ fontSize:20, color:T.text }} aria-hidden="true"/>
                 <div><div style={{ fontSize:14, fontWeight:500, color:T.text }}>Theme</div><div style={{ fontSize:11, color:T.muted }}>Reading background</div></div>
               </div>
-              <div style={{ display:"flex", gap:6 }}>
+              <div style={{ display:"flex", gap:8 }}>
                 {[["light","Light","#F8F4EC","#1C1C1E"],["dark","Dark","#0D1B2A","#F0EDE6"],["sepia","Sepia","#F5EFDC","#3B2D1E"]].map(([id,lbl,bg,fg]) => (
-                  <button key={id} onClick={() => changeTheme(id)} style={{ flex:1, borderRadius:8, padding:"10px 6px", fontSize:13, cursor:"pointer", border:`2px solid ${theme===id?GOLD:"transparent"}`, background:bg, color:fg, fontFamily:"inherit", fontWeight:theme===id?600:400, textAlign:"center" }}>{lbl}</button>
+                  <button key={id} onClick={() => changeTheme(id)} style={{ flex:1, borderRadius:10, padding:"12px 4px", fontSize:13, cursor:"pointer", border:`2px solid ${theme===id?GOLD:"rgba(0,0,0,0.15)"}`, background:bg, color:fg, fontFamily:"inherit", fontWeight:theme===id?700:400, textAlign:"center", boxShadow:theme===id?`0 0 0 1px ${GOLD}`:"none", minWidth:0 }}>{lbl}</button>
                 ))}
               </div>
             </div>
