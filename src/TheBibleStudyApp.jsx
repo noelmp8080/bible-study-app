@@ -244,14 +244,7 @@ function Sidebar({ T, isDesktop, tab, setTab, theme, changeTheme }) {
           {isDesktop && <span style={{ fontSize:12, color:tab===id?GOLD:"rgba(255,255,255,.45)", fontWeight:500, letterSpacing:.3 }}>{lbl}</span>}
         </div>
       ))}
-      <div style={{ marginTop:"auto", padding:10, width:"100%", borderTop:"1px solid rgba(201,168,76,.15)" }}>
-        {isDesktop && <div style={{ fontSize:9, textTransform:"uppercase", letterSpacing:1, color:"rgba(255,255,255,.3)", marginBottom:6, textAlign:"center" }}>Theme</div>}
-        <div style={{ display:"flex", gap:4, justifyContent:"center" }}>
-          {[["light","☀"],["dark","🌙"],["sepia","📜"]].map(([t,e]) => (
-            <button key={t} onClick={() => changeTheme(t)} title={t} style={{ background:theme===t?"rgba(201,168,76,.2)":"transparent", border:`1px solid ${theme===t?GOLD:"transparent"}`, borderRadius:8, padding:"5px 6px", cursor:"pointer", fontSize:isDesktop?14:13 }}>{e}</button>
-          ))}
-        </div>
-      </div>
+      <div style={{ marginTop:"auto", borderTop:"1px solid rgba(201,168,76,.15)" }}/>
     </div>
   );
 }
