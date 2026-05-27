@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "./supabase";
 
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
 const BOOKS_OT = [
   ["Genesis",50],["Exodus",40],["Leviticus",27],["Numbers",36],["Deuteronomy",34],
   ["Joshua",24],["Judges",21],["Ruth",4],["1 Samuel",31],["2 Samuel",24],
@@ -20,6 +21,7 @@ const BOOKS_NT = [
   ["Philemon",1],["Hebrews",13],["James",5],["1 Peter",5],["2 Peter",3],
   ["1 John",5],["2 John",1],["3 John",1],["Jude",1],["Revelation",22]
 ];
+const NAV = [["read","ti-book-2","Read"],["notes","ti-notebook","Notes"],["ai","ti-sparkles","Ask AI"],["search","ti-search","Search"],["settings","ti-settings","Prefs"]];
 
 const DICT = {
   "Agape":         { type:"Greek: ἀγάπη",                    def:"Unconditional, self-sacrificing love — the highest form in the NT. Distinct from phileo (brotherly) and eros (romantic). The word used in John 3:16 and 1 Corinthians 13." },
@@ -65,8 +67,7 @@ const THEMES = {
   dark:  { bg:"#0D1420", surface:"#1A2333", surface2:"#243040", text:"#F0EDE6", muted:"#8892A0", header:"#070D15", border:"rgba(255,255,255,0.09)", input:"#1E2B3C" },
   sepia: { bg:"#F5EFDC", surface:"#FBF6EA", surface2:"#EDE0C4", text:"#3B2D1E", muted:"#8B7355", header:"#2C1F0E", border:"rgba(0,0,0,0.11)", input:"#EBE0C8" },
 };
-
-const GOLD  = "#C9A84C";
+const GOLD = "#C9A84C";
 const DAILY = [
   { ref:"Proverbs 3:5",     text:"Trust in the LORD with all thine heart; and lean not unto thine own understanding." },
   { ref:"Philippians 4:13", text:"I can do all things through Christ which strengtheneth me." },
@@ -83,7 +84,26 @@ function bookKey(name) {
   return map[name] || name.toLowerCase().replace(/ /g,"+");
 }
 
-// ─── APPLE PENCIL DRAWING CANVAS ─────────────────────────────────────────────
+// ─── MODULE-LEVEL STYLE HELPERS ───────────────────────────────────────────────
+function mkBtn(T, isTablet, isDesktop, v = "def") {
+  return {
+    background: v==="gold" ? GOLD : v==="red" ? "#C0392B" : T.header,
+    border: "none", borderRadius: 20,
+    padding: isTablet||isDesktop ? "9px 18px" : "7px 14px",
+    color: v==="gold" ? "#0D1B2A" : "#F0EDE6",
+    fontSize: isDesktop ? 13 : 12, cursor: "pointer",
+    fontFamily: "inherit", display: "flex", alignItems: "center",
+    gap: 5, transition: "opacity .15s", whiteSpace: "nowrap",
+  };
+}
+function mkCard(T, isDesktop) {
+  return { background: T.surface, borderRadius: 14, padding: isDesktop ? "16px 18px" : "13px 15px", border: `1px solid ${T.border}`, marginBottom: 10 };
+}
+function mkInp(T) {
+  return { width: "100%", background: T.input, border: `1px solid ${T.border}`, borderRadius: 10, padding: "9px 12px", fontSize: 13, fontFamily: "inherit", color: T.text, outline: "none", boxSizing: "border-box" };
+}
+
+// ─── DRAWING CANVAS ───────────────────────────────────────────────────────────
 function DrawingCanvas({ onSave, onClose, T }) {
   const canvasRef  = useRef(null);
   const drawing    = useRef(false);
@@ -106,18 +126,14 @@ function DrawingCanvas({ onSave, onClose, T }) {
     const sy = canvasRef.current.height / r.height;
     return { x:(e.clientX-r.left)*sx, y:(e.clientY-r.top)*sy };
   }
-
   function onDown(e) {
     e.preventDefault();
     canvasRef.current.setPointerCapture(e.pointerId);
-    drawing.current = true;
-    lastPos.current = gPos(e);
-    curStroke.current = [];
-    if (e.pointerType==="pen")   setPL("Apple Pencil ✦");
+    drawing.current = true; lastPos.current = gPos(e); curStroke.current = [];
+    if (e.pointerType==="pen") setPL("Apple Pencil ✦");
     else if (e.pointerType==="touch") setPL("Finger");
     else setPL("Mouse");
   }
-
   function onMove(e) {
     if (!drawing.current) return;
     e.preventDefault();
@@ -130,21 +146,18 @@ function DrawingCanvas({ onSave, onClose, T }) {
     else if (tool==="hi") { lw=20; stroke=penColor; alpha=0.28; }
     else { lw=isPen ? Math.max(0.8, pressure*5) : 2; stroke=penColor; alpha=1; }
     ctx.globalAlpha = alpha;
-    ctx.beginPath();
-    ctx.moveTo(lastPos.current.x, lastPos.current.y);
+    ctx.beginPath(); ctx.moveTo(lastPos.current.x, lastPos.current.y);
     ctx.lineTo(pos.x, pos.y);
     ctx.lineWidth=lw; ctx.strokeStyle=stroke; ctx.lineCap="round"; ctx.lineJoin="round";
     ctx.stroke(); ctx.globalAlpha=1;
     curStroke.current.push({ f:{...lastPos.current}, t:{...pos}, lw, stroke, alpha });
     lastPos.current = pos;
   }
-
   function onUp() {
     drawing.current = false;
     if (curStroke.current.length) allStrokes.current.push([...curStroke.current]);
     curStroke.current = [];
   }
-
   function undo() {
     allStrokes.current.pop();
     const c=canvasRef.current; const ctx=c.getContext("2d");
@@ -155,19 +168,16 @@ function DrawingCanvas({ onSave, onClose, T }) {
       ctx.lineCap="round"; ctx.lineJoin="round"; ctx.stroke(); ctx.globalAlpha=1;
     }));
   }
-
   function clearAll() {
     allStrokes.current=[];
     const c=canvasRef.current; const ctx=c.getContext("2d");
     ctx.fillStyle="white"; ctx.fillRect(0,0,c.width,c.height);
   }
-
   const tbtn = (id,ico,lbl) => (
     <button key={id} onClick={()=>setTool(id)} style={{ background:tool===id?GOLD:"transparent", border:`1px solid ${tool===id?GOLD:T.border}`, borderRadius:8, padding:"6px 10px", cursor:"pointer", display:"flex", alignItems:"center", gap:4, color:tool===id?"#0D1B2A":T.text, fontSize:12, fontFamily:"inherit" }}>
       <i className={`ti ${ico}`} style={{fontSize:15}} aria-hidden="true"/>{lbl}
     </button>
   );
-
   return (
     <div style={{ background:T.surface, borderRadius:14, overflow:"hidden", border:`1px solid ${T.border}` }}>
       <div style={{ background:T.surface2, padding:"8px 10px", display:"flex", gap:6, alignItems:"center", flexWrap:"wrap", borderBottom:`1px solid ${T.border}` }}>
@@ -205,271 +215,22 @@ function DrawingCanvas({ onSave, onClose, T }) {
   );
 }
 
-// ─── MAIN APP ─────────────────────────────────────────────────────────────────
-export default function BibleStudyApp() {
-  const rootRef = useRef(null);
-  const [cw, setCW]       = useState(400);
-  const [tab, setTab]     = useState("read");
-  const [theme, setTheme] = useState("light");
-  const [fs, setFS]       = useState(17);
+// ─── TOP BAR ─────────────────────────────────────────────────────────────────
+function TopBar({ T, isDesktop, title, sub, right }) {
+  return (
+    <div style={{ background:T.header, padding:isDesktop?"14px 22px":"11px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
+      <div>
+        <div style={{ color:GOLD, fontFamily:"'Playfair Display',Georgia,serif", fontSize:isDesktop?20:17, fontWeight:600 }}>{title}</div>
+        {sub && <div style={{ color:"rgba(255,255,255,.45)", fontSize:11, marginTop:2 }}>{sub}</div>}
+      </div>
+      {right && <div style={{ display:"flex", gap:10, alignItems:"center" }}>{right}</div>}
+    </div>
+  );
+}
 
-  // ── Preferences (Supabase-backed) ───────────────────────────────────
-  const [prefId, setPrefId]   = useState(null);
-  const [apiKey, setApiKey]   = useState(() => localStorage.getItem("bsa_api_key") || "");
-
-  // ── Reader ──────────────────────────────────────────────────────────
-  const [bookName, setBN]  = useState("John");
-  const [chapter, setCh]   = useState(3);
-  const [maxCh, setMC]     = useState(21);
-  const [verses, setVs]    = useState([]);
-  const [loading, setLd]   = useState(false);
-  // hl: { [verseNum]: supabaseRowId } — truthy = highlighted
-  const [hl, setHL]        = useState({});
-  const [showBP, setSBP]   = useState(false);
-  const [showCP, setSCP]   = useState(false);
-  const daily = DAILY[new Date().getDay() % DAILY.length];
-
-  // ── Notes (Supabase-backed) ─────────────────────────────────────────
-  const [notes, setNotes]   = useState([]);
-  const [showEditor, setSE] = useState(false);
-  const [nTitle, setNT]     = useState("");
-  const [nRef, setNR]       = useState("");
-  const [nText, setNText]   = useState("");
-  const [nTags, setNTg]     = useState("");
-  const [recOn, setRec]     = useState(false);
-  const [recT, setRT]       = useState(0);
-  const [hasAudio, setHA]   = useState(false);
-  const [hasImg, setHI]     = useState(false);
-  const [drawing, setDraw]  = useState(null);
-  const [showCanvas, setSC] = useState(false);
-  const recRef = useRef(null);
-
-  // ── AI ──────────────────────────────────────────────────────────────
-  const [aiMsgs, setAI] = useState([{ role:"assistant", content:"Shalom! I'm your KJV Bible study companion. Ask me anything — theology, history, Greek & Hebrew word studies, or chapter expositions." }]);
-  const [aiIn, setAIn]  = useState("");
-  const [aiLd, setAL]   = useState(false);
-  const chatEnd = useRef(null);
-
-  // ── Search ──────────────────────────────────────────────────────────
-  const [sRef, setSRef]   = useState("");
-  const [sRes, setSRes]   = useState([]);
-  const [sRef2, setSR2]   = useState("");
-  const [sLd, setSL]      = useState(false);
-  const [dQ, setDQ]       = useState("");
-  const [odw, setODW]     = useState(null);
-
-  const T = THEMES[theme];
-
-  // ── Responsive width ────────────────────────────────────────────────
-  useEffect(() => {
-    if (!rootRef.current) return;
-    const obs = new ResizeObserver(e => setCW(e[0].contentRect.width));
-    obs.observe(rootRef.current);
-    return () => obs.disconnect();
-  }, []);
-
-  const isMobile  = cw < 640;
-  const isTablet  = cw >= 640 && cw < 1024;
-  const isDesktop = cw >= 1024;
-
-  // ── Load Supabase data on mount ──────────────────────────────────────
-  useEffect(() => { loadPrefs(); loadNotes(); }, []);
-
-  // ── Fetch chapter + highlights ───────────────────────────────────────
-  useEffect(() => { fetchCh(); }, [bookName, chapter]);
-
-  // ── Supabase: preferences ────────────────────────────────────────────
-  async function loadPrefs() {
-    const { data } = await supabase.from("preferences").select("*").limit(1).maybeSingle();
-    if (data) {
-      setTheme(data.theme || "light");
-      setFS(data.font_size || 17);
-      setPrefId(data.id);
-    }
-  }
-
-  async function savePrefsDB(t, f) {
-    const payload = { theme: t, font_size: f, updated_at: new Date().toISOString() };
-    if (prefId) {
-      await supabase.from("preferences").update(payload).eq("id", prefId);
-    } else {
-      const { data } = await supabase.from("preferences").insert(payload).select().single();
-      if (data) setPrefId(data.id);
-    }
-  }
-
-  function changeTheme(t) { setTheme(t); savePrefsDB(t, fs); }
-  function incFS() { const n = Math.min(28, fs + 1); setFS(n); savePrefsDB(theme, n); }
-  function decFS() { const n = Math.max(12, fs - 1); setFS(n); savePrefsDB(theme, n); }
-
-  function handleApiKey(val) { setApiKey(val); localStorage.setItem("bsa_api_key", val); }
-
-  // ── Supabase: highlights ─────────────────────────────────────────────
-  async function fetchCh() {
-    setLd(true); setVs([]); setHL({});
-    const [verseResult, hlResult] = await Promise.all([
-      fetch(`https://bible-api.com/${bookKey(bookName)}+${chapter}?translation=kjv`)
-        .then(r => r.json())
-        .catch(() => ({ verses: [{ verse:1, text:"Network error — please check your internet connection." }] })),
-      supabase.from("highlights").select("*").eq("book", bookName).eq("chapter", chapter),
-    ]);
-    setVs(verseResult.verses || [{ verse:1, text:"Unable to load chapter. Please check your connection." }]);
-    setLd(false);
-    if (hlResult.data) {
-      const map = {};
-      hlResult.data.forEach(h => { map[h.verse] = h.id; });
-      setHL(map);
-    }
-  }
-
-  function pickBook(name, chs) { setBN(name); setMC(chs); setCh(1); setSBP(false); }
-
-  async function toggleHL(n) {
-    if (hl[n]) {
-      await supabase.from("highlights").delete().eq("id", hl[n]);
-      setHL(p => { const x = {...p}; delete x[n]; return x; });
-    } else {
-      const { data } = await supabase.from("highlights")
-        .insert({ book: bookName, chapter, verse: n, color: "gold" })
-        .select().single();
-      if (data) setHL(p => ({ ...p, [n]: data.id }));
-    }
-  }
-
-  // ── Supabase: notes ──────────────────────────────────────────────────
-  async function loadNotes() {
-    const { data } = await supabase.from("notes").select("*").order("created_at", { ascending: false });
-    if (data) setNotes(data.map(n => ({
-      ...n,
-      date:     new Date(n.created_at).toLocaleDateString("en-US", { month:"short", day:"numeric" }),
-      hasAudio: n.has_audio,
-      hasImg:   n.has_image,
-      drawing:  n.drawing?.dataUrl || null,
-    })));
-  }
-
-  function toggleRec() {
-    if (!recOn) { setRec(true); setRT(0); recRef.current = setInterval(() => setRT(t => t+1), 1000); }
-    else { setRec(false); setHA(true); clearInterval(recRef.current); }
-  }
-
-  async function saveNote() {
-    if (!nTitle.trim()) return;
-    const tags = nTags.split(",").map(t => t.trim()).filter(Boolean);
-    const ref  = nRef.trim() || `${bookName} ${chapter}`;
-    const { data } = await supabase.from("notes").insert({
-      title: nTitle.trim(), ref, text: nText.trim(), tags,
-      has_audio: hasAudio, has_image: hasImg,
-      drawing: drawing ? { dataUrl: drawing } : null,
-    }).select().single();
-    if (data) {
-      setNotes(p => [{
-        ...data,
-        date:     new Date(data.created_at).toLocaleDateString("en-US", { month:"short", day:"numeric" }),
-        hasAudio: data.has_audio,
-        hasImg:   data.has_image,
-        drawing:  data.drawing?.dataUrl || null,
-      }, ...p]);
-    }
-    setNT(""); setNR(""); setNText(""); setNTg("");
-    setHA(false); setHI(false); setRec(false); setDraw(null);
-    clearInterval(recRef.current); setSE(false);
-  }
-
-  function deleteNote(id) {
-    supabase.from("notes").delete().eq("id", id);
-    setNotes(p => p.filter(x => x.id !== id));
-  }
-
-  // ── AI ───────────────────────────────────────────────────────────────
-  useEffect(() => { chatEnd.current?.scrollIntoView({ behavior:"smooth" }); }, [aiMsgs, aiLd]);
-
-  async function sendAI(override) {
-    const msg = override || aiIn.trim();
-    if (!msg || aiLd) return;
-    if (!apiKey) { alert("Add your Anthropic API key in Preferences."); return; }
-    setAIn(""); setAL(true);
-    const upd = [...aiMsgs, { role:"user", content:msg }]; setAI(upd);
-    try {
-      const r = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 1000,
-          system: "You are a deeply knowledgeable, pastoral Bible study assistant for 'The Bible Study App.' Study exclusively from the King James Version (KJV). Provide theological depth, historical context, and original Greek/Hebrew insights. Always cite specific KJV references. Be warm, reverent, and thorough. Format concisely for reading.",
-          messages: upd.map(m => ({ role:m.role, content:m.content })),
-        }),
-      });
-      const d = await r.json();
-      const reply = d.content?.find(c => c.type==="text")?.text || "Unable to respond. Try again.";
-      setAI(p => [...p, { role:"assistant", content:reply }]);
-    } catch {
-      setAI(p => [...p, { role:"assistant", content:"Connection error. Please check your internet connection." }]);
-    }
-    setAL(false);
-  }
-
-  async function smartSummary() {
-    if (!apiKey) { alert("Add your Anthropic API key in Preferences."); return; }
-    const ref = nRef.trim() || `${bookName} ${chapter}`;
-    try {
-      const r = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true",
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-6",
-          max_tokens: 600,
-          system: "You are a KJV Bible study assistant. Format your response exactly as:\n\nOVERVIEW:\n[2 sentences]\n\nKEY POINTS:\n• [point 1]\n• [point 2]\n• [point 3]\n\nEXPOSITION:\n[2-3 sentences of theological insight]\n\nBe concise and KJV-focused.",
-          messages: [{ role:"user", content:`Smart study summary for ${ref} (KJV)` }],
-        }),
-      });
-      const d = await r.json();
-      const txt = d.content?.find(c => c.type==="text")?.text || "";
-      setNText(p => p ? p + "\n\n" + txt : txt);
-    } catch {
-      setNText(p => p + "\n\n[Summary unavailable — check connection]");
-    }
-  }
-
-  // ── Search ───────────────────────────────────────────────────────────
-  async function doSearch() {
-    if (!sRef.trim()) return; setSL(true); setSRes([]); setSR2(sRef);
-    try {
-      const r = await fetch(`https://bible-api.com/${sRef.trim().replace(/ /g,"+")}?translation=kjv`);
-      const d = await r.json();
-      setSRes(d.verses ? d.verses.map(v => ({ ...v, fullRef:d.reference })) : []);
-    } catch { setSRes([]); }
-    setSL(false);
-  }
-
-  const dictF = Object.entries(DICT).filter(([k]) => dQ ? k.toLowerCase().includes(dQ.toLowerCase()) : true);
-  const fmt = t => `${Math.floor(t/60)}:${String(t%60).padStart(2,"0")}`;
-
-  // ─── STYLE HELPERS ───────────────────────────────────────────────────
-  const pill    = () => ({ background:"rgba(201,168,76,.15)", border:"1px solid rgba(201,168,76,.3)", borderRadius:20, padding:isMobile?"5px 11px":"6px 14px", display:"flex", alignItems:"center", gap:5, cursor:"pointer" });
-  const pTxt    = { color:GOLD, fontSize:isMobile?13:14, fontWeight:500 };
-  const card    = { background:T.surface, borderRadius:14, padding:isDesktop?"16px 18px":"13px 15px", border:`1px solid ${T.border}`, marginBottom:10 };
-  const inp     = { width:"100%", background:T.input, border:`1px solid ${T.border}`, borderRadius:10, padding:"9px 12px", fontSize:13, fontFamily:"inherit", color:T.text, outline:"none", boxSizing:"border-box" };
-  const btn     = (v="def") => ({ background:v==="gold"?GOLD:v==="red"?"#C0392B":T.header, border:"none", borderRadius:20, padding:isTablet||isDesktop?"9px 18px":"7px 14px", color:v==="gold"?"#0D1B2A":"#F0EDE6", fontSize:isDesktop?13:12, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:5, transition:"opacity .15s", whiteSpace:"nowrap" });
-  const overlay = { position:"fixed", inset:0, background:"rgba(0,0,0,.6)", zIndex:20, display:"flex", flexDirection:"column", justifyContent:"flex-end" };
-  const sheet   = (big) => ({ background:T.surface, borderRadius:"20px 20px 0 0", padding:isTablet||isDesktop?22:16, maxHeight:big?"85vh":"70vh", overflowY:"auto", border:`2px solid ${GOLD}` });
-
-  // ─── NAV ─────────────────────────────────────────────────────────────
-  const NAV = [["read","ti-book-2","Read"],["notes","ti-notebook","Notes"],["ai","ti-sparkles","Ask AI"],["search","ti-search","Search"],["settings","ti-settings","Prefs"]];
-
-  // ─── SIDEBAR ─────────────────────────────────────────────────────────
-  const Sidebar = () => (
+// ─── SIDEBAR ─────────────────────────────────────────────────────────────────
+function Sidebar({ T, isDesktop, tab, setTab, theme, changeTheme }) {
+  return (
     <div style={{ background:T.header, width:isDesktop?200:64, flexShrink:0, display:"flex", flexDirection:"column", alignItems:"center", paddingTop:12, borderRight:`1px solid rgba(201,168,76,.15)`, minHeight:"100%" }}>
       <div style={{ padding:isDesktop?"14px 16px 18px":"12px 0 16px", textAlign:"center", borderBottom:"1px solid rgba(201,168,76,.15)", width:"100%", marginBottom:8 }}>
         {isDesktop
@@ -493,9 +254,11 @@ export default function BibleStudyApp() {
       </div>
     </div>
   );
+}
 
-  // ─── BOTTOM NAV ──────────────────────────────────────────────────────
-  const BottomNav = () => (
+// ─── BOTTOM NAV ──────────────────────────────────────────────────────────────
+function BottomNav({ T, tab, setTab }) {
+  return (
     <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:50, background:T.header, padding:"8px 0 10px", display:"flex", borderTop:`1px solid rgba(201,168,76,.2)` }}>
       {NAV.map(([id,ico,lbl]) => (
         <div key={id} onClick={() => setTab(id)} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:2, cursor:"pointer", flex:1 }}>
@@ -505,22 +268,16 @@ export default function BibleStudyApp() {
       ))}
     </div>
   );
+}
 
-  // ─── TOP BAR ─────────────────────────────────────────────────────────
-  const TopBar = ({ title, sub, right }) => (
-    <div style={{ background:T.header, padding:isDesktop?"14px 22px":"11px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
-      <div>
-        <div style={{ color:GOLD, fontFamily:"'Playfair Display',Georgia,serif", fontSize:isDesktop?20:17, fontWeight:600 }}>{title}</div>
-        {sub && <div style={{ color:"rgba(255,255,255,.45)", fontSize:11, marginTop:2 }}>{sub}</div>}
-      </div>
-      {right && <div style={{ display:"flex", gap:10, alignItems:"center" }}>{right}</div>}
-    </div>
-  );
-
-  // ─── READER ──────────────────────────────────────────────────────────
-  const ReaderContent = () => (
+// ─── READER ──────────────────────────────────────────────────────────────────
+function ReaderContent({ T, isDesktop, isTablet, isMobile, bookName, chapter, maxCh, verses, loading, hl, daily, fs, setSBP, setSCP, toggleHL, setNR, setTab, setSE, setAIn, setCh }) {
+  const pill = () => ({ background:"rgba(201,168,76,.15)", border:"1px solid rgba(201,168,76,.3)", borderRadius:20, padding:isMobile?"5px 11px":"6px 14px", display:"flex", alignItems:"center", gap:5, cursor:"pointer" });
+  const pTxt = { color:GOLD, fontSize:isMobile?13:14, fontWeight:500 };
+  const btn  = (v="def") => mkBtn(T, isTablet, isDesktop, v);
+  return (
     <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
-      <TopBar title="The Bible Study App" sub="King James Version · 1611"
+      <TopBar T={T} isDesktop={isDesktop} title="The Bible Study App" sub="King James Version · 1611"
         right={<>
           <i className="ti ti-bookmark" style={{ color:"rgba(255,255,255,.7)", fontSize:isDesktop?22:20, cursor:"pointer" }} aria-hidden="true"/>
           <i className="ti ti-share"    style={{ color:"rgba(255,255,255,.7)", fontSize:isDesktop?22:20, cursor:"pointer" }} aria-hidden="true"/>
@@ -582,12 +339,15 @@ export default function BibleStudyApp() {
       </div>
     </div>
   );
+}
 
-  // ─── NOTES ───────────────────────────────────────────────────────────
-  const NotesContent = () => (
+// ─── NOTES ───────────────────────────────────────────────────────────────────
+function NotesContent({ T, isDesktop, isMobile, notes, setSE, deleteNote }) {
+  const card = mkCard(T, isDesktop);
+  return (
     <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
-      <TopBar title="✦ My Notes" sub={`${notes.length} notes · KJV`}
-        right={<button onClick={() => setSE(true)} style={btn("gold")}><i className="ti ti-plus" aria-hidden="true"/>New Note</button>}
+      <TopBar T={T} isDesktop={isDesktop} title="✦ My Notes" sub={`${notes.length} notes · KJV`}
+        right={<button onClick={() => setSE(true)} style={mkBtn(T, false, isDesktop, "gold")}><i className="ti ti-plus" aria-hidden="true"/>New Note</button>}
       />
       <div style={{ flex:1, overflowY:"auto", padding:isDesktop?"14px 18px":"10px 14px" }}>
         {notes.length===0 && <div style={{ padding:"40px 20px", textAlign:"center", color:T.muted, fontStyle:"italic" }}>No notes yet. Tap "New Note" to begin your study journal.</div>}
@@ -621,11 +381,13 @@ export default function BibleStudyApp() {
       </div>
     </div>
   );
+}
 
-  // ─── AI ──────────────────────────────────────────────────────────────
-  const AIContent = () => (
+// ─── AI ──────────────────────────────────────────────────────────────────────
+function AIContent({ T, isDesktop, isMobile, aiMsgs, aiIn, setAIn, aiLd, chatEnd, sendAI }) {
+  return (
     <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
-      <TopBar title="✦ Ask the Word" sub="AI Bible study assistant · KJV only"/>
+      <TopBar T={T} isDesktop={isDesktop} title="✦ Ask the Word" sub="AI Bible study assistant · KJV only"/>
       <div style={{ background:"#1A2D42", padding:"8px 12px", display:"flex", gap:7, overflowX:"auto", flexShrink:0 }}>
         {["What is grace?","Pharisees explained","Explain the Trinity","Psalm 23 exposition","What is Sheol?","Romans 8 overview","The Beatitudes"].map(q => (
           <div key={q} onClick={() => sendAI(q)} style={{ background:"rgba(201,168,76,.1)", border:"1px solid rgba(201,168,76,.25)", borderRadius:20, padding:isDesktop?"6px 14px":"5px 11px", whiteSpace:"nowrap", fontSize:isDesktop?13:11, color:GOLD, cursor:"pointer", flexShrink:0 }}>{q}</div>
@@ -645,8 +407,14 @@ export default function BibleStudyApp() {
         <div ref={chatEnd}/>
       </div>
       <div style={{ background:T.surface, borderTop:`1px solid ${T.border}`, padding:"10px 14px", display:"flex", gap:8, alignItems:"center", flexShrink:0 }}>
-        <input value={aiIn} onChange={e => setAIn(e.target.value)} onKeyDown={e => e.key==="Enter" && sendAI()}
+        <input
+          value={aiIn}
+          onChange={e => setAIn(e.target.value)}
+          onKeyDown={e => e.key==="Enter" && !e.shiftKey && sendAI()}
           placeholder="Ask anything about the Bible…"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="sentences"
           style={{ flex:1, background:T.input, border:`1px solid ${T.border}`, borderRadius:20, padding:"9px 14px", fontSize:13, fontFamily:"inherit", color:T.text, outline:"none" }}
           aria-label="AI Bible question"
         />
@@ -656,15 +424,26 @@ export default function BibleStudyApp() {
       </div>
     </div>
   );
+}
 
-  // ─── SEARCH / CONCORDANCE ─────────────────────────────────────────────
-  const SearchContent = () => (
+// ─── SEARCH / CONCORDANCE ─────────────────────────────────────────────────────
+function SearchContent({ T, isDesktop, isMobile, sRef, setSRef, doSearch, sLd, sRes, sRef2, dQ, setDQ, odw, setODW, setNR, setTab, setSE, setAIn, dictF }) {
+  const card = mkCard(T, isDesktop);
+  const btn  = (v="def") => mkBtn(T, false, isDesktop, v);
+  const inp  = mkInp(T);
+  return (
     <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
-      <TopBar title="✦ Concordance" sub="Verses · Bible Dictionary · Word Study"/>
+      <TopBar T={T} isDesktop={isDesktop} title="✦ Concordance" sub="Verses · Bible Dictionary · Word Study"/>
       <div style={{ background:"#1A2D42", padding:"10px 14px", flexShrink:0 }}>
         <div style={{ display:"flex", gap:7 }}>
-          <input value={sRef} onChange={e => setSRef(e.target.value)} onKeyDown={e => e.key==="Enter" && doSearch()}
+          <input
+            value={sRef}
+            onChange={e => setSRef(e.target.value)}
+            onKeyDown={e => e.key==="Enter" && doSearch()}
             placeholder="Reference (e.g. Romans 8:28 or John 1:1-5)"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="words"
             style={{ flex:1, background:"rgba(255,255,255,.1)", border:"1px solid rgba(201,168,76,.25)", borderRadius:20, padding:"9px 15px", fontSize:13, color:"#F0EDE6", fontFamily:"inherit", outline:"none" }}
             aria-label="Verse reference search"
           />
@@ -696,7 +475,15 @@ export default function BibleStudyApp() {
           <div style={{...card, textAlign:"center", color:T.muted, fontSize:13, marginBottom:16}}>No results. Try a valid reference (e.g. "John 3" or "Genesis 1:1-3").</div>
         )}
         <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:1, color:T.muted, marginBottom:8 }}>Bible Dictionary & Word Study</div>
-        <input value={dQ} onChange={e => setDQ(e.target.value)} placeholder="Filter terms…" style={{...inp,marginBottom:10}} aria-label="Filter dictionary"/>
+        <input
+          value={dQ}
+          onChange={e => setDQ(e.target.value)}
+          placeholder="Filter terms…"
+          autoComplete="off"
+          autoCorrect="off"
+          style={{...inp, marginBottom:10}}
+          aria-label="Filter dictionary"
+        />
         <div style={{ display:"grid", gridTemplateColumns:isDesktop?"repeat(2,1fr)":"1fr", gap:8 }}>
           {dictF.map(([word,entry]) => (
             <div key={word} onClick={() => setODW(odw===word?null:word)}
@@ -714,11 +501,15 @@ export default function BibleStudyApp() {
       </div>
     </div>
   );
+}
 
-  // ─── SETTINGS ─────────────────────────────────────────────────────────
-  const SettingsContent = () => (
+// ─── SETTINGS ─────────────────────────────────────────────────────────────────
+function SettingsContent({ T, isDesktop, isMobile, isTablet, theme, changeTheme, fs, incFS, decFS, apiKey, handleApiKey }) {
+  const card = mkCard(T, isDesktop);
+  const inp  = mkInp(T);
+  return (
     <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
-      <TopBar title="✦ Preferences" sub="Personalize your study experience"/>
+      <TopBar T={T} isDesktop={isDesktop} title="✦ Preferences" sub="Personalize your study experience"/>
       <div style={{ flex:1, overflowY:"auto", padding:isDesktop?"16px 20px":"14px" }}>
         <div style={{ display:"grid", gridTemplateColumns:isDesktop?"repeat(2,1fr)":"1fr", gap:10 }}>
           <div>
@@ -750,8 +541,13 @@ export default function BibleStudyApp() {
             <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:1, color:T.muted, marginBottom:8 }}>AI Scholar</div>
             <div style={{...card}}>
               <div style={{ fontSize:14, fontWeight:500, color:T.text, marginBottom:6 }}>Anthropic API Key</div>
-              <input type="password" value={apiKey} onChange={e => handleApiKey(e.target.value)}
+              <input
+                type="password"
+                value={apiKey}
+                onChange={e => handleApiKey(e.target.value)}
                 placeholder="sk-ant-…"
+                autoComplete="off"
+                autoCorrect="off"
                 style={{...inp, marginBottom:6}}
                 aria-label="Anthropic API key"
               />
@@ -780,33 +576,225 @@ export default function BibleStudyApp() {
       </div>
     </div>
   );
+}
 
-  // ─── CONTENT ROUTER ──────────────────────────────────────────────────
-  // AIContent and SearchContent are called as plain functions (not JSX components)
-  // to prevent React from unmounting/remounting them on every render, which would
-  // dismiss the on-screen keyboard after each keystroke.
-  const Content = () => {
-    if (tab==="read")     return <ReaderContent/>;
-    if (tab==="notes")    return <NotesContent/>;
-    if (tab==="ai")       return AIContent();
-    if (tab==="search")   return SearchContent();
-    if (tab==="settings") return <SettingsContent/>;
-    return null;
-  };
+// ─── MAIN APP ─────────────────────────────────────────────────────────────────
+export default function BibleStudyApp() {
+  const rootRef = useRef(null);
+  const [cw, setCW]       = useState(400);
+  const [tab, setTab]     = useState("read");
+  const [theme, setTheme] = useState("light");
+  const [fs, setFS]       = useState(17);
 
-  // ─── RENDER ──────────────────────────────────────────────────────────
+  const [prefId, setPrefId] = useState(null);
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem("bsa_api_key") || "");
+
+  const [bookName, setBN] = useState("John");
+  const [chapter, setCh]  = useState(3);
+  const [maxCh, setMC]    = useState(21);
+  const [verses, setVs]   = useState([]);
+  const [loading, setLd]  = useState(false);
+  const [hl, setHL]       = useState({});
+  const [showBP, setSBP]  = useState(false);
+  const [showCP, setSCP]  = useState(false);
+  const daily = DAILY[new Date().getDay() % DAILY.length];
+
+  const [notes, setNotes]   = useState([]);
+  const [showEditor, setSE] = useState(false);
+  const [nTitle, setNT]     = useState("");
+  const [nRef, setNR]       = useState("");
+  const [nText, setNText]   = useState("");
+  const [nTags, setNTg]     = useState("");
+  const [recOn, setRec]     = useState(false);
+  const [recT, setRT]       = useState(0);
+  const [hasAudio, setHA]   = useState(false);
+  const [hasImg, setHI]     = useState(false);
+  const [drawing, setDraw]  = useState(null);
+  const [showCanvas, setSC] = useState(false);
+  const recRef = useRef(null);
+
+  const [aiMsgs, setAI] = useState([{ role:"assistant", content:"Shalom! I'm your KJV Bible study companion. Ask me anything — theology, history, Greek & Hebrew word studies, or chapter expositions." }]);
+  const [aiIn, setAIn]  = useState("");
+  const [aiLd, setAL]   = useState(false);
+  const chatEnd = useRef(null);
+
+  const [sRef, setSRef] = useState("");
+  const [sRes, setSRes] = useState([]);
+  const [sRef2, setSR2] = useState("");
+  const [sLd, setSL]    = useState(false);
+  const [dQ, setDQ]     = useState("");
+  const [odw, setODW]   = useState(null);
+
+  const T = THEMES[theme];
+
+  useEffect(() => {
+    if (!rootRef.current) return;
+    const obs = new ResizeObserver(e => setCW(e[0].contentRect.width));
+    obs.observe(rootRef.current);
+    return () => obs.disconnect();
+  }, []);
+
+  const isMobile  = cw < 640;
+  const isTablet  = cw >= 640 && cw < 1024;
+  const isDesktop = cw >= 1024;
+
+  useEffect(() => { loadPrefs(); loadNotes(); }, []);
+  useEffect(() => { fetchCh(); }, [bookName, chapter]);
+  useEffect(() => { chatEnd.current?.scrollIntoView({ behavior:"smooth" }); }, [aiMsgs, aiLd]);
+
+  async function loadPrefs() {
+    const { data } = await supabase.from("preferences").select("*").limit(1).maybeSingle();
+    if (data) { setTheme(data.theme || "light"); setFS(data.font_size || 17); setPrefId(data.id); }
+  }
+  async function savePrefsDB(t, f) {
+    const payload = { theme: t, font_size: f, updated_at: new Date().toISOString() };
+    if (prefId) { await supabase.from("preferences").update(payload).eq("id", prefId); }
+    else { const { data } = await supabase.from("preferences").insert(payload).select().single(); if (data) setPrefId(data.id); }
+  }
+  function changeTheme(t) { setTheme(t); savePrefsDB(t, fs); }
+  function incFS() { const n = Math.min(28, fs + 1); setFS(n); savePrefsDB(theme, n); }
+  function decFS() { const n = Math.max(12, fs - 1); setFS(n); savePrefsDB(theme, n); }
+  function handleApiKey(val) { setApiKey(val); localStorage.setItem("bsa_api_key", val); }
+
+  async function fetchCh() {
+    setLd(true); setVs([]); setHL({});
+    const [verseResult, hlResult] = await Promise.all([
+      fetch(`https://bible-api.com/${bookKey(bookName)}+${chapter}?translation=kjv`)
+        .then(r => r.json())
+        .catch(() => ({ verses: [{ verse:1, text:"Network error — please check your internet connection." }] })),
+      supabase.from("highlights").select("*").eq("book", bookName).eq("chapter", chapter),
+    ]);
+    setVs(verseResult.verses || [{ verse:1, text:"Unable to load chapter. Please check your connection." }]);
+    setLd(false);
+    if (hlResult.data) {
+      const map = {};
+      hlResult.data.forEach(h => { map[h.verse] = h.id; });
+      setHL(map);
+    }
+  }
+  function pickBook(name, chs) { setBN(name); setMC(chs); setCh(1); setSBP(false); }
+  async function toggleHL(n) {
+    if (hl[n]) {
+      await supabase.from("highlights").delete().eq("id", hl[n]);
+      setHL(p => { const x = {...p}; delete x[n]; return x; });
+    } else {
+      const { data } = await supabase.from("highlights").insert({ book: bookName, chapter, verse: n, color: "gold" }).select().single();
+      if (data) setHL(p => ({ ...p, [n]: data.id }));
+    }
+  }
+
+  async function loadNotes() {
+    const { data } = await supabase.from("notes").select("*").order("created_at", { ascending: false });
+    if (data) setNotes(data.map(n => ({
+      ...n,
+      date:     new Date(n.created_at).toLocaleDateString("en-US", { month:"short", day:"numeric" }),
+      hasAudio: n.has_audio,
+      hasImg:   n.has_image,
+      drawing:  n.drawing?.dataUrl || null,
+    })));
+  }
+  function toggleRec() {
+    if (!recOn) { setRec(true); setRT(0); recRef.current = setInterval(() => setRT(t => t+1), 1000); }
+    else { setRec(false); setHA(true); clearInterval(recRef.current); }
+  }
+  async function saveNote() {
+    if (!nTitle.trim()) return;
+    const tags = nTags.split(",").map(t => t.trim()).filter(Boolean);
+    const ref  = nRef.trim() || `${bookName} ${chapter}`;
+    const { data } = await supabase.from("notes").insert({
+      title: nTitle.trim(), ref, text: nText.trim(), tags,
+      has_audio: hasAudio, has_image: hasImg,
+      drawing: drawing ? { dataUrl: drawing } : null,
+    }).select().single();
+    if (data) {
+      setNotes(p => [{
+        ...data,
+        date:     new Date(data.created_at).toLocaleDateString("en-US", { month:"short", day:"numeric" }),
+        hasAudio: data.has_audio, hasImg: data.has_image,
+        drawing:  data.drawing?.dataUrl || null,
+      }, ...p]);
+    }
+    setNT(""); setNR(""); setNText(""); setNTg("");
+    setHA(false); setHI(false); setRec(false); setDraw(null);
+    clearInterval(recRef.current); setSE(false);
+  }
+  function deleteNote(id) {
+    supabase.from("notes").delete().eq("id", id);
+    setNotes(p => p.filter(x => x.id !== id));
+  }
+
+  async function sendAI(override) {
+    const msg = override || aiIn.trim();
+    if (!msg || aiLd) return;
+    if (!apiKey) { alert("Add your Anthropic API key in Preferences."); return; }
+    setAIn(""); setAL(true);
+    const upd = [...aiMsgs, { role:"user", content:msg }]; setAI(upd);
+    try {
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type":"application/json", "x-api-key":apiKey, "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
+        body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:1000, system:"You are a deeply knowledgeable, pastoral Bible study assistant for 'The Bible Study App.' Study exclusively from the King James Version (KJV). Provide theological depth, historical context, and original Greek/Hebrew insights. Always cite specific KJV references. Be warm, reverent, and thorough. Format concisely for reading.", messages:upd.map(m => ({ role:m.role, content:m.content })) }),
+      });
+      const d = await r.json();
+      const reply = d.content?.find(c => c.type==="text")?.text || "Unable to respond. Try again.";
+      setAI(p => [...p, { role:"assistant", content:reply }]);
+    } catch {
+      setAI(p => [...p, { role:"assistant", content:"Connection error. Please check your internet connection." }]);
+    }
+    setAL(false);
+  }
+
+  async function smartSummary() {
+    if (!apiKey) { alert("Add your Anthropic API key in Preferences."); return; }
+    const ref = nRef.trim() || `${bookName} ${chapter}`;
+    try {
+      const r = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type":"application/json", "x-api-key":apiKey, "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
+        body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:600, system:"You are a KJV Bible study assistant. Format your response exactly as:\n\nOVERVIEW:\n[2 sentences]\n\nKEY POINTS:\n• [point 1]\n• [point 2]\n• [point 3]\n\nEXPOSITION:\n[2-3 sentences of theological insight]\n\nBe concise and KJV-focused.", messages:[{ role:"user", content:`Smart study summary for ${ref} (KJV)` }] }),
+      });
+      const d = await r.json();
+      const txt = d.content?.find(c => c.type==="text")?.text || "";
+      setNText(p => p ? p + "\n\n" + txt : txt);
+    } catch {
+      setNText(p => p + "\n\n[Summary unavailable — check connection]");
+    }
+  }
+
+  async function doSearch() {
+    if (!sRef.trim()) return; setSL(true); setSRes([]); setSR2(sRef);
+    try {
+      const r = await fetch(`https://bible-api.com/${sRef.trim().replace(/ /g,"+")}?translation=kjv`);
+      const d = await r.json();
+      setSRes(d.verses ? d.verses.map(v => ({ ...v, fullRef:d.reference })) : []);
+    } catch { setSRes([]); }
+    setSL(false);
+  }
+
+  const dictF = Object.entries(DICT).filter(([k]) => dQ ? k.toLowerCase().includes(dQ.toLowerCase()) : true);
+  const fmt   = t => `${Math.floor(t/60)}:${String(t%60).padStart(2,"0")}`;
+
+  const overlay = { position:"fixed", inset:0, background:"rgba(0,0,0,.6)", zIndex:20, display:"flex", flexDirection:"column", justifyContent:"flex-end" };
+  const sheet   = (big) => ({ background:T.surface, borderRadius:"20px 20px 0 0", padding:isTablet||isDesktop?22:16, maxHeight:big?"85vh":"70vh", overflowY:"auto", border:`2px solid ${GOLD}` });
+  const inp     = mkInp(T);
+  const btn     = (v="def") => mkBtn(T, isTablet, isDesktop, v);
+
   return (
     <div ref={rootRef} style={{ width:"100%", height:"100dvh", background:T.bg, fontFamily:"'DM Sans','Segoe UI',sans-serif", position:"relative", display:"flex", flexDirection:"column", overflow:"hidden" }}>
 
       <div style={{ display:"flex", flex:1, minHeight:0, height:"100%" }}>
-        {!isMobile && <Sidebar/>}
+        {!isMobile && <Sidebar T={T} isDesktop={isDesktop} tab={tab} setTab={setTab} theme={theme} changeTheme={changeTheme}/>}
         <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0, overflow:"hidden", paddingBottom:isMobile?60:0 }}>
-          <Content/>
-          {isMobile && <BottomNav/>}
+          {tab==="read"     && <ReaderContent T={T} isDesktop={isDesktop} isTablet={isTablet} isMobile={isMobile} bookName={bookName} chapter={chapter} maxCh={maxCh} verses={verses} loading={loading} hl={hl} daily={daily} fs={fs} setSBP={setSBP} setSCP={setSCP} toggleHL={toggleHL} setNR={setNR} setTab={setTab} setSE={setSE} setAIn={setAIn} setCh={setCh}/>}
+          {tab==="notes"    && <NotesContent T={T} isDesktop={isDesktop} isMobile={isMobile} notes={notes} setSE={setSE} deleteNote={deleteNote}/>}
+          {tab==="ai"       && <AIContent T={T} isDesktop={isDesktop} isMobile={isMobile} aiMsgs={aiMsgs} aiIn={aiIn} setAIn={setAIn} aiLd={aiLd} chatEnd={chatEnd} sendAI={sendAI}/>}
+          {tab==="search"   && <SearchContent T={T} isDesktop={isDesktop} isMobile={isMobile} sRef={sRef} setSRef={setSRef} doSearch={doSearch} sLd={sLd} sRes={sRes} sRef2={sRef2} dQ={dQ} setDQ={setDQ} odw={odw} setODW={setODW} setNR={setNR} setTab={setTab} setSE={setSE} setAIn={setAIn} dictF={dictF}/>}
+          {tab==="settings" && <SettingsContent T={T} isDesktop={isDesktop} isMobile={isMobile} isTablet={isTablet} theme={theme} changeTheme={changeTheme} fs={fs} incFS={incFS} decFS={decFS} apiKey={apiKey} handleApiKey={handleApiKey}/>}
+          {isMobile && <BottomNav T={T} tab={tab} setTab={setTab}/>}
         </div>
       </div>
 
-      {/* ══ BOOK PICKER ════════════════════════════════════════════ */}
+      {/* ══ BOOK PICKER ════════════════════════════════════════════════════ */}
       {showBP && (
         <div style={overlay} onClick={() => setSBP(false)}>
           <div style={sheet(true)} onClick={e => e.stopPropagation()}>
@@ -831,7 +819,7 @@ export default function BibleStudyApp() {
         </div>
       )}
 
-      {/* ══ CHAPTER PICKER ═════════════════════════════════════════ */}
+      {/* ══ CHAPTER PICKER ═════════════════════════════════════════════════ */}
       {showCP && (
         <div style={overlay} onClick={() => setSCP(false)}>
           <div style={sheet(false)} onClick={e => e.stopPropagation()}>
@@ -851,7 +839,7 @@ export default function BibleStudyApp() {
         </div>
       )}
 
-      {/* ══ NOTE EDITOR ════════════════════════════════════════════ */}
+      {/* ══ NOTE EDITOR ════════════════════════════════════════════════════ */}
       {showEditor && (
         <div style={overlay}>
           <div style={sheet(true)} onClick={e => e.stopPropagation()}>
@@ -859,10 +847,10 @@ export default function BibleStudyApp() {
               <span style={{ fontSize:17, fontWeight:500, color:T.text, fontFamily:"'Playfair Display',Georgia,serif" }}>New Study Note</span>
               <button onClick={() => { setSE(false); setRec(false); clearInterval(recRef.current); setSC(false); }} style={{ background:"none", border:"none", cursor:"pointer", color:T.muted, padding:4 }}><i className="ti ti-x" style={{fontSize:20}} aria-hidden="true"/></button>
             </div>
-            <input value={nTitle} onChange={e => setNT(e.target.value)} placeholder="Note title…" style={{...inp,marginBottom:9}} aria-label="Note title"/>
-            <input value={nRef}   onChange={e => setNR(e.target.value)} placeholder="Verse reference (e.g. John 3:16)" style={{...inp,marginBottom:9}} aria-label="Verse reference"/>
-            <textarea value={nText} onChange={e => setNText(e.target.value)} placeholder="Write your study notes here…" rows={isTablet||isDesktop?6:4} style={{...inp,marginBottom:9,resize:"none"}} aria-label="Note body"/>
-            <input value={nTags} onChange={e => setNTg(e.target.value)} placeholder="Tags — comma separated (e.g. Grace, Faith)" style={{...inp,marginBottom:14}} aria-label="Note tags"/>
+            <input value={nTitle} onChange={e => setNT(e.target.value)} placeholder="Note title…" autoComplete="off" autoCorrect="off" autoCapitalize="sentences" style={{...inp,marginBottom:9}} aria-label="Note title"/>
+            <input value={nRef}   onChange={e => setNR(e.target.value)} placeholder="Verse reference (e.g. John 3:16)" autoComplete="off" autoCorrect="off" autoCapitalize="words" style={{...inp,marginBottom:9}} aria-label="Verse reference"/>
+            <textarea value={nText} onChange={e => setNText(e.target.value)} placeholder="Write your study notes here…" rows={isTablet||isDesktop?6:4} autoComplete="off" autoCorrect="off" autoCapitalize="sentences" style={{...inp,marginBottom:9,resize:"none"}} aria-label="Note body"/>
+            <input value={nTags} onChange={e => setNTg(e.target.value)} placeholder="Tags — comma separated (e.g. Grace, Faith)" autoComplete="off" autoCorrect="off" style={{...inp,marginBottom:14}} aria-label="Note tags"/>
             <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:1, color:T.muted, marginBottom:8 }}>Attach to Note</div>
             <div style={{ display:"flex", gap:8, marginBottom:12, flexWrap:"wrap" }}>
               <button onClick={toggleRec} style={{...btn(recOn?"red":"def"),animation:recOn?"pulse 1.5s infinite":"none"}}>
