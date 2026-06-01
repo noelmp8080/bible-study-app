@@ -609,9 +609,12 @@ export default function BibleStudyApp() {
   const [showCanvas, setSC] = useState(false);
   const [editingNoteId, setEID] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
+  const [recordings, setRecordings] = useState([]);
   const recRef        = useRef(null);
   const mediaRecRef   = useRef(null);
   const chunksRef     = useRef([]);
+  const audioBlobRef  = useRef(null);
+  const mimeTypeRef   = useRef("");
 
   const [aiMsgs, setAI] = useState([{ role:"assistant", content:"Shalom! I'm your KJV Bible study companion. Ask me anything — theology, history, Greek & Hebrew word studies, or chapter expositions." }]);
   const [aiIn, setAIn]  = useState("");
@@ -693,19 +696,45 @@ export default function BibleStudyApp() {
       drawing:  n.drawing?.dataUrl || null,
     })));
   }
+  function blobToBase64(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result);
+      reader.onerror  = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function loadRecordings(noteId) {
+    try {
+      const { data, error } = await supabase
+        .from("recordings")
+        .select("*")
+        .eq("note_id", noteId)
+        .order("created_at", { ascending: true });
+      if (!error && data) setRecordings(data);
+    } catch { /* non-fatal */ }
+  }
+
+  async function deleteRecording(recId) {
+    const { error } = await supabase.from("recordings").delete().eq("id", recId);
+    if (!error) setRecordings(p => p.filter(r => r.id !== recId));
+  }
+
   function toggleRec() {
     if (!recOn) {
       // Pick the first mimeType the browser actually supports
       const candidates = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"];
       const mimeType   = candidates.find(t => { try { return MediaRecorder.isTypeSupported(t); } catch { return false; } }) || "";
+      mimeTypeRef.current = mimeType;
       navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
         chunksRef.current = [];
         const opts = mimeType ? { mimeType } : {};
         const mr   = new MediaRecorder(stream, opts);
         mr.ondataavailable = e => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data); };
         mr.onstop = () => {
-          // Assemble all collected chunks into one Blob, then create the URL
-          const blob = new Blob(chunksRef.current, { type: mimeType || "audio/webm" });
+          const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || "audio/webm" });
+          audioBlobRef.current = blob;
           const url  = URL.createObjectURL(blob);
           setAudioUrl(url);
           setHA(true);
@@ -737,14 +766,18 @@ export default function BibleStudyApp() {
     setDraw(note.drawing || null);
     if (audioUrl) { URL.revokeObjectURL(audioUrl); }
     setAudioUrl(null);
+    audioBlobRef.current = null;
+    setRecordings([]);
     setEID(note.id);
     setSE(true);
+    loadRecordings(note.id);
   }
 
   async function saveNote() {
     if (!nTitle.trim()) return;
     const tags = nTags.split(",").map(t => t.trim()).filter(Boolean);
     const ref  = nRef.trim() || `${bookName} ${chapter}`;
+    let savedNoteId = editingNoteId;
     if (editingNoteId) {
       const { data } = await supabase.from("notes").update({
         title: nTitle.trim(), ref, text: nText.trim(), tags,
@@ -766,6 +799,7 @@ export default function BibleStudyApp() {
         drawing: drawing ? { dataUrl: drawing } : null,
       }).select().single();
       if (data) {
+        savedNoteId = data.id;
         setNotes(p => [{
           ...data,
           date:     new Date(data.created_at).toLocaleDateString("en-US", { month:"short", day:"numeric" }),
@@ -774,11 +808,26 @@ export default function BibleStudyApp() {
         }, ...p]);
       }
     }
+    if (audioBlobRef.current && savedNoteId) {
+      try {
+        const audioData = await blobToBase64(audioBlobRef.current);
+        const label = new Date().toLocaleString("en-US", { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" });
+        await supabase.from("recordings").insert({
+          note_id:    savedNoteId,
+          label,
+          audio_data: audioData,
+          duration:   recT,
+          mime_type:  mimeTypeRef.current || "audio/webm",
+        });
+      } catch { /* non-fatal */ }
+      audioBlobRef.current = null;
+    }
     setEID(null);
     setNT(""); setNR(""); setNText(""); setNTg("");
     setHA(false); setHI(false); setRec(false); setDraw(null);
     if (audioUrl) { URL.revokeObjectURL(audioUrl); }
     setAudioUrl(null);
+    setRecordings([]);
     clearInterval(recRef.current); setSE(false);
   }
   async function deleteNote(id) {
@@ -914,7 +963,9 @@ export default function BibleStudyApp() {
                 if (mediaRecRef.current && mediaRecRef.current.state !== "inactive") mediaRecRef.current.stop();
                 clearInterval(recRef.current);
                 if (audioUrl) { URL.revokeObjectURL(audioUrl); }
+                audioBlobRef.current = null;
                 setAudioUrl(null); setEID(null); setRec(false); setSC(false); setSE(false);
+                setRecordings([]);
               }} style={{ background:"none", border:"none", cursor:"pointer", color:T.muted, padding:4 }}><i className="ti ti-x" style={{fontSize:20}} aria-hidden="true"/></button>
             </div>
             <input value={nTitle} onChange={e => setNT(e.target.value)} placeholder="Note title…" autoComplete="off" autoCorrect="off" autoCapitalize="sentences" style={{...inp,marginBottom:9}} aria-label="Note title"/>
@@ -927,10 +978,10 @@ export default function BibleStudyApp() {
                 <i className={`ti ${recOn?"ti-player-stop":"ti-microphone"}`} aria-hidden="true"/>
                 {recOn?`● Stop · ${fmt(recT)}`:hasAudio?"✓ Audio":"Record"}
               </button>
-              <button onClick={() => setHI(true)} style={{...btn(),background:hasImg?"#1A7A4A":undefined}}>
+              <button onClick={() => setHI(true)} style={{...btn(), ...(hasImg && {background:"#1A7A4A"})}}>
                 <i className="ti ti-camera" aria-hidden="true"/>{hasImg?"✓ Photo":"Snap Photo"}
               </button>
-              <button onClick={() => setSC(!showCanvas)} style={{...btn(),background:showCanvas?"rgba(201,168,76,.25)":undefined,border:showCanvas?`1px solid ${GOLD}`:"none"}}>
+              <button onClick={() => setSC(!showCanvas)} style={{...btn(), ...(showCanvas && {background:"rgba(201,168,76,.25)", border:`1px solid ${GOLD}`})}}>
                 <i className="ti ti-pencil" aria-hidden="true"/>{drawing?"✓ Drawing":"Draw / Pencil"}
               </button>
               <button onClick={smartSummary} style={btn()}>
@@ -953,7 +1004,23 @@ export default function BibleStudyApp() {
               <div style={{ marginBottom:14 }}>
                 <div style={{ fontSize:11, color:T.muted, marginBottom:5 }}>✦ Audio recorded — play back below</div>
                 <audio controls src={audioUrl} style={{ width:"100%", borderRadius:8 }} />
-                <button onClick={() => { URL.revokeObjectURL(audioUrl); setAudioUrl(null); setHA(false); }} style={{...btn(),marginTop:6,fontSize:10,padding:"4px 10px"}}>Remove audio</button>
+                <button onClick={() => { URL.revokeObjectURL(audioUrl); setAudioUrl(null); setHA(false); audioBlobRef.current = null; }} style={{...btn(),marginTop:6,fontSize:10,padding:"4px 10px"}}>Remove audio</button>
+              </div>
+            )}
+            {editingNoteId && recordings.length > 0 && (
+              <div style={{ marginBottom:14 }}>
+                <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:1, color:T.muted, marginBottom:8 }}>Saved Recordings</div>
+                {recordings.map(rec => (
+                  <div key={rec.id} style={{ background:T.header, borderRadius:10, padding:"10px 12px", marginBottom:8, border:`1px solid ${T.border}` }}>
+                    <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
+                      <span style={{ fontSize:11, color:T.muted }}>{rec.label}{rec.duration > 0 ? ` · ${fmt(rec.duration)}` : ""}</span>
+                      <button onClick={() => deleteRecording(rec.id)} style={{ background:"none", border:"none", cursor:"pointer", color:T.muted, padding:2, fontSize:13 }} aria-label="Delete recording">
+                        <i className="ti ti-trash" aria-hidden="true"/>
+                      </button>
+                    </div>
+                    <audio controls src={rec.audio_data} style={{ width:"100%", borderRadius:6 }} />
+                  </div>
+                ))}
               </div>
             )}
             <button onClick={saveNote} disabled={!nTitle.trim()} style={{...btn("gold"),width:"100%",justifyContent:"center",opacity:nTitle.trim()?1:.45,minHeight:44}}>

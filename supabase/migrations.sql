@@ -32,11 +32,24 @@ create table preferences (
   updated_at  timestamptz default now()
 );
 
+-- Recordings  (base64-encoded audio blobs linked to notes)
+create table if not exists recordings (
+  id          uuid        primary key default gen_random_uuid(),
+  note_id     uuid        not null references notes(id) on delete cascade,
+  label       text        not null default '',
+  audio_data  text        not null,
+  duration    integer     not null default 0,
+  mime_type   text        not null default 'audio/webm',
+  created_at  timestamptz not null default now()
+);
+
 -- Enable Row Level Security (open access — tighten once you add auth)
 alter table notes       enable row level security;
 alter table highlights  enable row level security;
 alter table preferences enable row level security;
+alter table recordings  enable row level security;
 
 create policy "Allow all" on notes       for all using (true) with check (true);
 create policy "Allow all" on highlights  for all using (true) with check (true);
 create policy "Allow all" on preferences for all using (true) with check (true);
+create policy "Allow all" on recordings  for all using (true) with check (true);
