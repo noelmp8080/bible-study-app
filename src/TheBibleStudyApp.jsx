@@ -335,7 +335,7 @@ function ReaderContent({ T, isDesktop, isTablet, isMobile, bookName, chapter, ma
 }
 
 // ─── NOTES ───────────────────────────────────────────────────────────────────
-function NotesContent({ T, isDesktop, isMobile, notes, setSE, deleteNote }) {
+function NotesContent({ T, isDesktop, isMobile, notes, setSE, deleteNote, openEdit }) {
   const card = mkCard(T, isDesktop);
   return (
     <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
@@ -346,7 +346,7 @@ function NotesContent({ T, isDesktop, isMobile, notes, setSE, deleteNote }) {
         {notes.length===0 && <div style={{ padding:"40px 20px", textAlign:"center", color:T.muted, fontStyle:"italic" }}>No notes yet. Tap "New Note" to begin your study journal.</div>}
         <div style={{ display:"grid", gridTemplateColumns:isDesktop?"repeat(2,1fr)":"1fr", gap:10 }}>
           {notes.map(n => (
-            <div key={n.id} style={card}>
+            <div key={n.id} style={{...card, cursor:"pointer"}} onClick={() => openEdit(n)}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"flex-start", marginBottom:5 }}>
                 <div style={{ fontSize:isDesktop?15:14, fontWeight:500, color:T.text, flex:1, marginRight:8 }}>{n.title}</div>
                 <div style={{ fontSize:10, color:T.muted, flexShrink:0 }}>{n.date}</div>
@@ -363,7 +363,10 @@ function NotesContent({ T, isDesktop, isMobile, notes, setSE, deleteNote }) {
                 {n.hasAudio && <div style={{ background:T.surface2, borderRadius:8, padding:"3px 9px", fontSize:10, color:T.muted, display:"flex", alignItems:"center", gap:4 }}><i className="ti ti-microphone" style={{fontSize:12}} aria-hidden="true"/>Audio</div>}
                 {n.hasImg   && <div style={{ background:T.surface2, borderRadius:8, padding:"3px 9px", fontSize:10, color:T.muted, display:"flex", alignItems:"center", gap:4 }}><i className="ti ti-photo" style={{fontSize:12}} aria-hidden="true"/>Photo</div>}
                 {n.drawing  && <div style={{ background:"rgba(201,168,76,.1)", border:"1px solid rgba(201,168,76,.2)", borderRadius:8, padding:"3px 9px", fontSize:10, color:GOLD, display:"flex", alignItems:"center", gap:4 }}><i className="ti ti-pencil" style={{fontSize:12}} aria-hidden="true"/>Drawing</div>}
-                <button onClick={() => deleteNote(n.id)} style={{ background:"rgba(192,57,43,.1)", border:"none", borderRadius:8, padding:"4px 10px", fontSize:10, color:"#C0392B", cursor:"pointer", marginLeft:"auto", display:"flex", alignItems:"center", gap:3, minHeight:28 }}>
+                <button onClick={e => { e.stopPropagation(); openEdit(n); }} style={{ background:"rgba(201,168,76,.1)", border:"none", borderRadius:8, padding:"4px 10px", fontSize:10, color:GOLD, cursor:"pointer", display:"flex", alignItems:"center", gap:3, minHeight:28 }}>
+                  <i className="ti ti-pencil" style={{fontSize:12}} aria-hidden="true"/>Edit
+                </button>
+                <button onClick={e => { e.stopPropagation(); deleteNote(n.id); }} style={{ background:"rgba(192,57,43,.1)", border:"none", borderRadius:8, padding:"4px 10px", fontSize:10, color:"#C0392B", cursor:"pointer", marginLeft:"auto", display:"flex", alignItems:"center", gap:3, minHeight:28 }}>
                   <i className="ti ti-trash" style={{fontSize:12}} aria-hidden="true"/>Delete
                 </button>
               </div>
@@ -604,7 +607,11 @@ export default function BibleStudyApp() {
   const [hasImg, setHI]     = useState(false);
   const [drawing, setDraw]  = useState(null);
   const [showCanvas, setSC] = useState(false);
-  const recRef = useRef(null);
+  const [editingNoteId, setEID] = useState(null);
+  const [audioUrl, setAudioUrl] = useState(null);
+  const recRef        = useRef(null);
+  const mediaRecRef   = useRef(null);
+  const chunksRef     = useRef([]);
 
   const [aiMsgs, setAI] = useState([{ role:"assistant", content:"Shalom! I'm your KJV Bible study companion. Ask me anything — theology, history, Greek & Hebrew word studies, or chapter expositions." }]);
   const [aiIn, setAIn]  = useState("");
@@ -687,33 +694,98 @@ export default function BibleStudyApp() {
     })));
   }
   function toggleRec() {
-    if (!recOn) { setRec(true); setRT(0); recRef.current = setInterval(() => setRT(t => t+1), 1000); }
-    else { setRec(false); setHA(true); clearInterval(recRef.current); }
+    if (!recOn) {
+      // Pick the first mimeType the browser actually supports
+      const candidates = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"];
+      const mimeType   = candidates.find(t => { try { return MediaRecorder.isTypeSupported(t); } catch { return false; } }) || "";
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        chunksRef.current = [];
+        const opts = mimeType ? { mimeType } : {};
+        const mr   = new MediaRecorder(stream, opts);
+        mr.ondataavailable = e => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data); };
+        mr.onstop = () => {
+          // Assemble all collected chunks into one Blob, then create the URL
+          const blob = new Blob(chunksRef.current, { type: mimeType || "audio/webm" });
+          const url  = URL.createObjectURL(blob);
+          setAudioUrl(url);
+          setHA(true);
+          stream.getTracks().forEach(t => t.stop());
+        };
+        mr.start();
+        mediaRecRef.current = mr;
+        setRec(true);
+        setRT(0);
+        recRef.current = setInterval(() => setRT(t => t + 1), 1000);
+      }).catch(() => {
+        alert("Microphone access was denied or is unavailable on this device.");
+      });
+    } else {
+      if (mediaRecRef.current && mediaRecRef.current.state !== "inactive") {
+        mediaRecRef.current.stop();
+      }
+      clearInterval(recRef.current);
+      setRec(false);
+    }
   }
+  function openEdit(note) {
+    setNT(note.title || "");
+    setNR(note.ref || "");
+    setNText(note.text || "");
+    setNTg((note.tags || []).join(", "));
+    setHA(note.hasAudio || false);
+    setHI(note.hasImg || false);
+    setDraw(note.drawing || null);
+    if (audioUrl) { URL.revokeObjectURL(audioUrl); }
+    setAudioUrl(null);
+    setEID(note.id);
+    setSE(true);
+  }
+
   async function saveNote() {
     if (!nTitle.trim()) return;
     const tags = nTags.split(",").map(t => t.trim()).filter(Boolean);
     const ref  = nRef.trim() || `${bookName} ${chapter}`;
-    const { data } = await supabase.from("notes").insert({
-      title: nTitle.trim(), ref, text: nText.trim(), tags,
-      has_audio: hasAudio, has_image: hasImg,
-      drawing: drawing ? { dataUrl: drawing } : null,
-    }).select().single();
-    if (data) {
-      setNotes(p => [{
-        ...data,
-        date:     new Date(data.created_at).toLocaleDateString("en-US", { month:"short", day:"numeric" }),
-        hasAudio: data.has_audio, hasImg: data.has_image,
-        drawing:  data.drawing?.dataUrl || null,
-      }, ...p]);
+    if (editingNoteId) {
+      const { data } = await supabase.from("notes").update({
+        title: nTitle.trim(), ref, text: nText.trim(), tags,
+        has_audio: hasAudio, has_image: hasImg,
+        drawing: drawing ? { dataUrl: drawing } : null,
+      }).eq("id", editingNoteId).select().single();
+      if (data) {
+        setNotes(p => p.map(n => n.id === editingNoteId ? {
+          ...data,
+          date:     new Date(data.created_at).toLocaleDateString("en-US", { month:"short", day:"numeric" }),
+          hasAudio: data.has_audio, hasImg: data.has_image,
+          drawing:  data.drawing?.dataUrl || null,
+        } : n));
+      }
+    } else {
+      const { data } = await supabase.from("notes").insert({
+        title: nTitle.trim(), ref, text: nText.trim(), tags,
+        has_audio: hasAudio, has_image: hasImg,
+        drawing: drawing ? { dataUrl: drawing } : null,
+      }).select().single();
+      if (data) {
+        setNotes(p => [{
+          ...data,
+          date:     new Date(data.created_at).toLocaleDateString("en-US", { month:"short", day:"numeric" }),
+          hasAudio: data.has_audio, hasImg: data.has_image,
+          drawing:  data.drawing?.dataUrl || null,
+        }, ...p]);
+      }
     }
+    setEID(null);
     setNT(""); setNR(""); setNText(""); setNTg("");
     setHA(false); setHI(false); setRec(false); setDraw(null);
+    if (audioUrl) { URL.revokeObjectURL(audioUrl); }
+    setAudioUrl(null);
     clearInterval(recRef.current); setSE(false);
   }
-  function deleteNote(id) {
-    supabase.from("notes").delete().eq("id", id);
-    setNotes(p => p.filter(x => x.id !== id));
+  async function deleteNote(id) {
+    const { error } = await supabase.from("notes").delete().eq("id", id);
+    if (!error) {
+      setNotes(p => p.filter(x => x.id !== id));
+    }
   }
 
   async function sendAI(override) {
@@ -779,7 +851,7 @@ export default function BibleStudyApp() {
         {!isMobile && <Sidebar T={T} isDesktop={isDesktop} tab={tab} setTab={setTab} theme={theme} changeTheme={changeTheme}/>}
         <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0, overflow:"hidden", paddingBottom:isMobile?60:0 }}>
           {tab==="read"     && <ReaderContent T={T} isDesktop={isDesktop} isTablet={isTablet} isMobile={isMobile} bookName={bookName} chapter={chapter} maxCh={maxCh} verses={verses} loading={loading} hl={hl} daily={daily} fs={fs} setSBP={setSBP} setSCP={setSCP} toggleHL={toggleHL} setNR={setNR} setTab={setTab} setSE={setSE} setAIn={setAIn} setCh={setCh}/>}
-          {tab==="notes"    && <NotesContent T={T} isDesktop={isDesktop} isMobile={isMobile} notes={notes} setSE={setSE} deleteNote={deleteNote}/>}
+          {tab==="notes"    && <NotesContent T={T} isDesktop={isDesktop} isMobile={isMobile} notes={notes} setSE={setSE} deleteNote={deleteNote} openEdit={openEdit}/>}
           {tab==="ai"       && <AIContent T={T} isDesktop={isDesktop} isMobile={isMobile} aiMsgs={aiMsgs} aiIn={aiIn} setAIn={setAIn} aiLd={aiLd} chatEnd={chatEnd} sendAI={sendAI}/>}
           {tab==="search"   && <SearchContent T={T} isDesktop={isDesktop} isMobile={isMobile} sRef={sRef} setSRef={setSRef} doSearch={doSearch} sLd={sLd} sRes={sRes} sRef2={sRef2} dQ={dQ} setDQ={setDQ} odw={odw} setODW={setODW} setNR={setNR} setTab={setTab} setSE={setSE} setAIn={setAIn} dictF={dictF}/>}
           {tab==="settings" && <SettingsContent T={T} isDesktop={isDesktop} isMobile={isMobile} isTablet={isTablet} theme={theme} changeTheme={changeTheme} fs={fs} incFS={incFS} decFS={decFS} apiKey={apiKey} handleApiKey={handleApiKey}/>}
@@ -837,8 +909,13 @@ export default function BibleStudyApp() {
         <div style={overlay}>
           <div style={sheet(true)} onClick={e => e.stopPropagation()}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
-              <span style={{ fontSize:17, fontWeight:500, color:T.text, fontFamily:"'Playfair Display',Georgia,serif" }}>New Study Note</span>
-              <button onClick={() => { setSE(false); setRec(false); clearInterval(recRef.current); setSC(false); }} style={{ background:"none", border:"none", cursor:"pointer", color:T.muted, padding:4 }}><i className="ti ti-x" style={{fontSize:20}} aria-hidden="true"/></button>
+              <span style={{ fontSize:17, fontWeight:500, color:T.text, fontFamily:"'Playfair Display',Georgia,serif" }}>{editingNoteId ? "Edit Note" : "New Study Note"}</span>
+              <button onClick={() => {
+                if (mediaRecRef.current && mediaRecRef.current.state !== "inactive") mediaRecRef.current.stop();
+                clearInterval(recRef.current);
+                if (audioUrl) { URL.revokeObjectURL(audioUrl); }
+                setAudioUrl(null); setEID(null); setRec(false); setSC(false); setSE(false);
+              }} style={{ background:"none", border:"none", cursor:"pointer", color:T.muted, padding:4 }}><i className="ti ti-x" style={{fontSize:20}} aria-hidden="true"/></button>
             </div>
             <input value={nTitle} onChange={e => setNT(e.target.value)} placeholder="Note title…" autoComplete="off" autoCorrect="off" autoCapitalize="sentences" style={{...inp,marginBottom:9}} aria-label="Note title"/>
             <input value={nRef}   onChange={e => setNR(e.target.value)} placeholder="Verse reference (e.g. John 3:16)" autoComplete="off" autoCorrect="off" autoCapitalize="words" style={{...inp,marginBottom:9}} aria-label="Verse reference"/>
@@ -870,6 +947,13 @@ export default function BibleStudyApp() {
                 <div style={{ fontSize:11, color:T.muted, marginBottom:5 }}>✦ Drawing attached</div>
                 <img src={drawing} alt="Your drawing" style={{ width:"100%", borderRadius:10, border:`1px solid ${T.border}`, maxHeight:160, objectFit:"contain", background:"white" }}/>
                 <button onClick={() => setDraw(null)} style={{...btn(),marginTop:6,fontSize:10,padding:"4px 10px"}}>Remove</button>
+              </div>
+            )}
+            {audioUrl && (
+              <div style={{ marginBottom:14 }}>
+                <div style={{ fontSize:11, color:T.muted, marginBottom:5 }}>✦ Audio recorded — play back below</div>
+                <audio controls src={audioUrl} style={{ width:"100%", borderRadius:8 }} />
+                <button onClick={() => { URL.revokeObjectURL(audioUrl); setAudioUrl(null); setHA(false); }} style={{...btn(),marginTop:6,fontSize:10,padding:"4px 10px"}}>Remove audio</button>
               </div>
             )}
             <button onClick={saveNote} disabled={!nTitle.trim()} style={{...btn("gold"),width:"100%",justifyContent:"center",opacity:nTitle.trim()?1:.45,minHeight:44}}>
