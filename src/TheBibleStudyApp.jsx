@@ -743,8 +743,29 @@ export default function BibleStudyApp() {
     return types.find(type => { try { return MediaRecorder.isTypeSupported(type); } catch { return false; } }) || '';
   }
 
+  function openNewNote() {
+    if (mediaRecRef.current && mediaRecRef.current.state !== "inactive") mediaRecRef.current.stop();
+    clearInterval(recRef.current);
+    if (audioUrl) URL.revokeObjectURL(audioUrl);
+    audioReadyRef.current = null;
+    audioBlobRef.current  = null;
+    chunksRef.current     = [];
+    setEID(null);
+    setNT(""); setNR(""); setNText(""); setNTg("");
+    setHA(false); setHI(false); setRec(false); setRT(0); setDraw(null); setSC(false);
+    setAudioUrl(null);
+    setRecordings([]);
+    setSaveError(null);
+    setSaving(false);
+    setSE(true);
+  }
+
   function toggleRec() {
     if (!recOn) {
+      // Clear any stale Promise/blob from a previous recording session before starting a new one
+      audioReadyRef.current = null;
+      audioBlobRef.current  = null;
+      chunksRef.current     = [];
       const mimeType = getSupportedMimeType();
       mimeTypeRef.current = mimeType;
       navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
@@ -823,6 +844,7 @@ export default function BibleStudyApp() {
           has_audio: hasAudio, has_image: hasImg,
           drawing: drawing ? { dataUrl: drawing } : null,
         }).eq("id", editingNoteId).select().single();
+        console.log("[saveNote] update:", { id: data?.id, error: error?.message });
         if (error) throw new Error("Failed to update note: " + error.message);
         if (data) {
           setNotes(p => p.map(n => n.id === editingNoteId ? {
@@ -838,6 +860,7 @@ export default function BibleStudyApp() {
           has_audio: hasAudio, has_image: hasImg,
           drawing: drawing ? { dataUrl: drawing } : null,
         }).select().single();
+        console.log("[saveNote] insert:", { id: data?.id, error: error?.message });
         if (error) throw new Error("Failed to save note: " + error.message);
         if (data) {
           savedNoteId = data.id;
@@ -972,7 +995,7 @@ export default function BibleStudyApp() {
         {!isMobile && <Sidebar T={T} isDesktop={isDesktop} tab={tab} setTab={setTab} theme={theme} changeTheme={changeTheme}/>}
         <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0, overflow:"hidden", paddingBottom:isMobile?60:0 }}>
           {tab==="read"     && <ReaderContent T={T} isDesktop={isDesktop} isTablet={isTablet} isMobile={isMobile} bookName={bookName} chapter={chapter} maxCh={maxCh} verses={verses} loading={loading} hl={hl} daily={daily} fs={fs} setSBP={setSBP} setSCP={setSCP} toggleHL={toggleHL} setNR={setNR} setTab={setTab} setSE={setSE} setAIn={setAIn} setCh={setCh}/>}
-          {tab==="notes"    && <NotesContent T={T} isDesktop={isDesktop} isMobile={isMobile} notes={notes} setSE={setSE} deleteNote={deleteNote} openEdit={openEdit}/>}
+          {tab==="notes"    && <NotesContent T={T} isDesktop={isDesktop} isMobile={isMobile} notes={notes} setSE={openNewNote} deleteNote={deleteNote} openEdit={openEdit}/>}
           {tab==="ai"       && <AIContent T={T} isDesktop={isDesktop} isMobile={isMobile} aiMsgs={aiMsgs} aiIn={aiIn} setAIn={setAIn} aiLd={aiLd} chatEnd={chatEnd} sendAI={sendAI}/>}
           {tab==="search"   && <SearchContent T={T} isDesktop={isDesktop} isMobile={isMobile} sRef={sRef} setSRef={setSRef} doSearch={doSearch} sLd={sLd} sRes={sRes} sRef2={sRef2} dQ={dQ} setDQ={setDQ} odw={odw} setODW={setODW} setNR={setNR} setTab={setTab} setSE={setSE} setAIn={setAIn} dictF={dictF}/>}
           {tab==="settings" && <SettingsContent T={T} isDesktop={isDesktop} isMobile={isMobile} isTablet={isTablet} theme={theme} changeTheme={changeTheme} fs={fs} incFS={incFS} decFS={decFS} apiKey={apiKey} handleApiKey={handleApiKey}/>}
@@ -1037,7 +1060,10 @@ export default function BibleStudyApp() {
                 if (audioUrl) { URL.revokeObjectURL(audioUrl); }
                 audioBlobRef.current = null;
                 audioReadyRef.current = null;
-                setAudioUrl(null); setEID(null); setRec(false); setSC(false); setSE(false);
+                chunksRef.current = [];
+                setAudioUrl(null); setEID(null); setRec(false); setRT(0); setSC(false); setSE(false);
+                setNT(""); setNR(""); setNText(""); setNTg("");
+                setHA(false); setHI(false); setDraw(null);
                 setRecordings([]); setSaveError(null); setSaving(false);
               }} style={{ background:"none", border:"none", cursor:"pointer", color:T.muted, padding:4 }}><i className="ti ti-x" style={{fontSize:20}} aria-hidden="true"/></button>
             </div>
