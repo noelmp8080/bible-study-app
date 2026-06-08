@@ -720,13 +720,16 @@ export default function BibleStudyApp() {
     }
     console.log("[loadRecordings]", data?.length ?? 0, "recording(s) for note", noteId);
     if (data) {
-      setRecordings(data.map(rec => ({
-        ...rec,
-        // Construct a fresh data URL at load time — handles both old rows (full URL) and new rows (raw base64)
-        playSrc: rec.audio_data.startsWith("data:")
+      const mapped = data.map((rec, i) => {
+        const isFullUrl = typeof rec.audio_data === "string" && rec.audio_data.startsWith("data:");
+        // Strip codec params (e.g. audio/webm;codecs=opus → audio/webm) — data URL prefix must be plain MIME
+        const playSrc = isFullUrl
           ? rec.audio_data
-          : `data:${rec.mime_type};base64,${rec.audio_data}`,
-      })));
+          : `data:${(rec.mime_type || "audio/mp4").split(";")[0]};base64,${rec.audio_data}`;
+        console.log(`[loadRecordings] rec[${i}]`, rec.mime_type, "data length:", rec.audio_data?.length);
+        return { ...rec, playSrc };
+      });
+      setRecordings(mapped);
     }
   }
 
@@ -735,16 +738,22 @@ export default function BibleStudyApp() {
     if (!error) setRecordings(p => p.filter(r => r.id !== recId));
   }
 
+  function getSupportedMimeType() {
+    const types = ['audio/mp4', 'audio/aac', 'audio/webm;codecs=opus', 'audio/webm'];
+    return types.find(type => { try { return MediaRecorder.isTypeSupported(type); } catch { return false; } }) || '';
+  }
+
   function toggleRec() {
     if (!recOn) {
-      // Pick the first mimeType the browser actually supports
-      const candidates = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus"];
-      const mimeType   = candidates.find(t => { try { return MediaRecorder.isTypeSupported(t); } catch { return false; } }) || "";
+      const mimeType = getSupportedMimeType();
       mimeTypeRef.current = mimeType;
       navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
         chunksRef.current = [];
         const opts = mimeType ? { mimeType } : {};
         const mr   = new MediaRecorder(stream, opts);
+        // Capture the MIME type the browser actually chose — critical when getSupportedMimeType()
+        // returned '' and the browser (e.g. iOS Safari) fell back to its own default (audio/mp4)
+        mimeTypeRef.current = mr.mimeType || mimeType;
         mr.ondataavailable = e => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data); };
         mr.onstop = () => {
           stream.getTracks().forEach(t => t.stop());
@@ -850,7 +859,7 @@ export default function BibleStudyApp() {
         // Extract raw base64 — store without the "data:...;base64," prefix so we control data URL construction at play time
         const rawBase64 = audioData.includes(",") ? audioData.split(",")[1] : audioData;
         const label = new Date().toLocaleString("en-US", { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" });
-        console.log("[recordings] inserting — base64 size:", rawBase64.length, "mime:", mimeForStorage, "note:", savedNoteId);
+        console.log("[recordings] inserting", mimeForStorage, "base64 size:", rawBase64.length);
         const { data: recData, error: recErr } = await supabase.from("recordings").insert({
           note_id:    savedNoteId,
           label,
@@ -1067,7 +1076,12 @@ export default function BibleStudyApp() {
             {audioUrl && (
               <div style={{ marginBottom:14 }}>
                 <div style={{ fontSize:11, color:T.muted, marginBottom:5 }}>✦ Audio recorded — play back below</div>
-                <audio controls src={audioUrl} style={{ width:"100%", borderRadius:8 }} onError={e => console.error("[audio] blob playback error:", e.target.error)} />
+                <audio
+                  controls
+                  src={audioUrl}
+                  style={{ width:"100%", borderRadius:8 }}
+                  onError={e => console.error('[AUDIO BLOB ERROR]', e.target.error?.code, e.target.error?.message)}
+                />
                 <button onClick={() => { URL.revokeObjectURL(audioUrl); setAudioUrl(null); setHA(false); audioBlobRef.current = null; audioReadyRef.current = null; }} style={{...btn(),marginTop:6,fontSize:10,padding:"4px 10px"}}>Remove audio</button>
               </div>
             )}
@@ -1082,7 +1096,13 @@ export default function BibleStudyApp() {
                         <i className="ti ti-trash" aria-hidden="true"/>
                       </button>
                     </div>
-                    <audio key={rec.playSrc} controls src={rec.playSrc} style={{ width:"100%", borderRadius:6 }} onError={e => console.error("[audio] saved recording error, id:", rec.id, "src prefix:", rec.playSrc?.slice(0,40), e.target.error)} />
+                    <audio
+                      key={rec.playSrc}
+                      controls
+                      src={rec.playSrc}
+                      style={{ width:"100%", borderRadius:6 }}
+                      onError={e => console.error('[AUDIO ERROR]', e.target.error?.code, e.target.error?.message)}
+                    />
                   </div>
                 ))}
               </div>
