@@ -719,7 +719,15 @@ export default function BibleStudyApp() {
       return;
     }
     console.log("[loadRecordings]", data?.length ?? 0, "recording(s) for note", noteId);
-    if (data) setRecordings(data);
+    if (data) {
+      setRecordings(data.map(rec => ({
+        ...rec,
+        // Construct a fresh data URL at load time — handles both old rows (full URL) and new rows (raw base64)
+        playSrc: rec.audio_data.startsWith("data:")
+          ? rec.audio_data
+          : `data:${rec.mime_type};base64,${rec.audio_data}`,
+      })));
+    }
   }
 
   async function deleteRecording(recId) {
@@ -839,12 +847,14 @@ export default function BibleStudyApp() {
       if (pendingAudio && savedNoteId) {
         const audioData = await pendingAudio; // waits for base64 conversion even if Save clicked immediately after Stop
         const mimeForStorage = (mimeTypeRef.current || "audio/webm").split(";")[0];
+        // Extract raw base64 — store without the "data:...;base64," prefix so we control data URL construction at play time
+        const rawBase64 = audioData.includes(",") ? audioData.split(",")[1] : audioData;
         const label = new Date().toLocaleString("en-US", { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" });
-        console.log("[recordings] inserting — data size:", audioData.length, "mime:", mimeForStorage, "note:", savedNoteId);
+        console.log("[recordings] inserting — base64 size:", rawBase64.length, "mime:", mimeForStorage, "note:", savedNoteId);
         const { data: recData, error: recErr } = await supabase.from("recordings").insert({
           note_id:    savedNoteId,
           label,
-          audio_data: audioData,
+          audio_data: rawBase64,
           duration:   recT,
           mime_type:  mimeForStorage,
         }).select().single();
@@ -852,6 +862,14 @@ export default function BibleStudyApp() {
         if (recErr) {
           console.error("[recordings] insert failed:", recErr);
           throw new Error("Note saved — but recording failed to persist: " + recErr.message);
+        }
+        // Revoke the ephemeral blob URL now that the recording is persisted
+        if (audioUrl && audioUrl.startsWith("blob:")) URL.revokeObjectURL(audioUrl);
+        setAudioUrl(null);
+        // Immediately populate recordings state so the player is available without reopening the note
+        if (recData) {
+          const playSrc = `data:${mimeForStorage};base64,${recData.audio_data}`;
+          setRecordings(prev => [...prev, { ...recData, playSrc }]);
         }
         audioReadyRef.current = null;
         audioBlobRef.current = null;
@@ -863,7 +881,7 @@ export default function BibleStudyApp() {
       setEID(null);
       setNT(""); setNR(""); setNText(""); setNTg("");
       setHA(false); setHI(false); setRec(false); setDraw(null);
-      if (audioUrl) { URL.revokeObjectURL(audioUrl); }
+      if (audioUrl && audioUrl.startsWith("blob:")) URL.revokeObjectURL(audioUrl);
       setAudioUrl(null);
       setRecordings([]);
       clearInterval(recRef.current);
@@ -1064,7 +1082,7 @@ export default function BibleStudyApp() {
                         <i className="ti ti-trash" aria-hidden="true"/>
                       </button>
                     </div>
-                    <audio controls src={rec.audio_data} style={{ width:"100%", borderRadius:6 }} onError={e => console.error("[audio] saved recording error, id:", rec.id, e.target.error)} />
+                    <audio key={rec.playSrc} controls src={rec.playSrc} style={{ width:"100%", borderRadius:6 }} onError={e => console.error("[audio] saved recording error, id:", rec.id, "src prefix:", rec.playSrc?.slice(0,40), e.target.error)} />
                   </div>
                 ))}
               </div>
