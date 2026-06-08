@@ -610,6 +610,8 @@ export default function BibleStudyApp() {
   const [editingNoteId, setEID] = useState(null);
   const [audioUrl, setAudioUrl] = useState(null);
   const [recordings, setRecordings] = useState([]);
+  const [saving, setSaving]         = useState(false);
+  const [saveError, setSaveError]   = useState(null);
   const recRef        = useRef(null);
   const mediaRecRef   = useRef(null);
   const chunksRef     = useRef([]);
@@ -740,7 +742,7 @@ export default function BibleStudyApp() {
           setHA(true);
           stream.getTracks().forEach(t => t.stop());
         };
-        mr.start();
+        mr.start(100); // 100ms timeslice — ensures ondataavailable fires on iOS Safari
         mediaRecRef.current = mr;
         setRec(true);
         setRT(0);
@@ -757,6 +759,8 @@ export default function BibleStudyApp() {
     }
   }
   function openEdit(note) {
+    setSaveError(null);
+    setSaving(false);
     setNT(note.title || "");
     setNR(note.ref || "");
     setNText(note.text || "");
@@ -775,60 +779,80 @@ export default function BibleStudyApp() {
 
   async function saveNote() {
     if (!nTitle.trim()) return;
-    const tags = nTags.split(",").map(t => t.trim()).filter(Boolean);
-    const ref  = nRef.trim() || `${bookName} ${chapter}`;
-    let savedNoteId = editingNoteId;
-    if (editingNoteId) {
-      const { data } = await supabase.from("notes").update({
-        title: nTitle.trim(), ref, text: nText.trim(), tags,
-        has_audio: hasAudio, has_image: hasImg,
-        drawing: drawing ? { dataUrl: drawing } : null,
-      }).eq("id", editingNoteId).select().single();
-      if (data) {
-        setNotes(p => p.map(n => n.id === editingNoteId ? {
-          ...data,
-          date:     new Date(data.created_at).toLocaleDateString("en-US", { month:"short", day:"numeric" }),
-          hasAudio: data.has_audio, hasImg: data.has_image,
-          drawing:  data.drawing?.dataUrl || null,
-        } : n));
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const tags = nTags.split(",").map(t => t.trim()).filter(Boolean);
+      const ref  = nRef.trim() || `${bookName} ${chapter}`;
+      let savedNoteId = editingNoteId;
+
+      if (editingNoteId) {
+        const { data, error } = await supabase.from("notes").update({
+          title: nTitle.trim(), ref, text: nText.trim(), tags,
+          has_audio: hasAudio, has_image: hasImg,
+          drawing: drawing ? { dataUrl: drawing } : null,
+        }).eq("id", editingNoteId).select().single();
+        if (error) throw new Error("Failed to update note: " + error.message);
+        if (data) {
+          setNotes(p => p.map(n => n.id === editingNoteId ? {
+            ...data,
+            date:     new Date(data.created_at).toLocaleDateString("en-US", { month:"short", day:"numeric" }),
+            hasAudio: data.has_audio, hasImg: data.has_image,
+            drawing:  data.drawing?.dataUrl || null,
+          } : n));
+        }
+      } else {
+        const { data, error } = await supabase.from("notes").insert({
+          title: nTitle.trim(), ref, text: nText.trim(), tags,
+          has_audio: hasAudio, has_image: hasImg,
+          drawing: drawing ? { dataUrl: drawing } : null,
+        }).select().single();
+        if (error) throw new Error("Failed to save note: " + error.message);
+        if (data) {
+          savedNoteId = data.id;
+          // Switch to edit mode so a retry (if recording fails) updates rather than re-inserts
+          setEID(data.id);
+          setNotes(p => [{
+            ...data,
+            date:     new Date(data.created_at).toLocaleDateString("en-US", { month:"short", day:"numeric" }),
+            hasAudio: data.has_audio, hasImg: data.has_image,
+            drawing:  data.drawing?.dataUrl || null,
+          }, ...p]);
+        }
       }
-    } else {
-      const { data } = await supabase.from("notes").insert({
-        title: nTitle.trim(), ref, text: nText.trim(), tags,
-        has_audio: hasAudio, has_image: hasImg,
-        drawing: drawing ? { dataUrl: drawing } : null,
-      }).select().single();
-      if (data) {
-        savedNoteId = data.id;
-        setNotes(p => [{
-          ...data,
-          date:     new Date(data.created_at).toLocaleDateString("en-US", { month:"short", day:"numeric" }),
-          hasAudio: data.has_audio, hasImg: data.has_image,
-          drawing:  data.drawing?.dataUrl || null,
-        }, ...p]);
-      }
-    }
-    if (audioBlobRef.current && savedNoteId) {
-      try {
+
+      if (audioBlobRef.current && savedNoteId) {
         const audioData = await blobToBase64(audioBlobRef.current);
         const label = new Date().toLocaleString("en-US", { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" });
-        await supabase.from("recordings").insert({
+        const { error: recErr } = await supabase.from("recordings").insert({
           note_id:    savedNoteId,
           label,
           audio_data: audioData,
           duration:   recT,
           mime_type:  mimeTypeRef.current || "audio/webm",
         });
-      } catch { /* non-fatal */ }
-      audioBlobRef.current = null;
+        if (recErr) {
+          console.error("[recordings] insert failed:", recErr);
+          throw new Error("Note saved — but recording failed to persist: " + recErr.message);
+        }
+        audioBlobRef.current = null;
+      }
+
+      // Success — close editor and reset all fields
+      setEID(null);
+      setNT(""); setNR(""); setNText(""); setNTg("");
+      setHA(false); setHI(false); setRec(false); setDraw(null);
+      if (audioUrl) { URL.revokeObjectURL(audioUrl); }
+      setAudioUrl(null);
+      setRecordings([]);
+      clearInterval(recRef.current);
+      setSE(false);
+    } catch (err) {
+      console.error("[saveNote]", err);
+      setSaveError(err.message || "Save failed — please try again.");
+    } finally {
+      setSaving(false);
     }
-    setEID(null);
-    setNT(""); setNR(""); setNText(""); setNTg("");
-    setHA(false); setHI(false); setRec(false); setDraw(null);
-    if (audioUrl) { URL.revokeObjectURL(audioUrl); }
-    setAudioUrl(null);
-    setRecordings([]);
-    clearInterval(recRef.current); setSE(false);
   }
   async function deleteNote(id) {
     const { error } = await supabase.from("notes").delete().eq("id", id);
@@ -965,7 +989,7 @@ export default function BibleStudyApp() {
                 if (audioUrl) { URL.revokeObjectURL(audioUrl); }
                 audioBlobRef.current = null;
                 setAudioUrl(null); setEID(null); setRec(false); setSC(false); setSE(false);
-                setRecordings([]);
+                setRecordings([]); setSaveError(null); setSaving(false);
               }} style={{ background:"none", border:"none", cursor:"pointer", color:T.muted, padding:4 }}><i className="ti ti-x" style={{fontSize:20}} aria-hidden="true"/></button>
             </div>
             <input value={nTitle} onChange={e => setNT(e.target.value)} placeholder="Note title…" autoComplete="off" autoCorrect="off" autoCapitalize="sentences" style={{...inp,marginBottom:9}} aria-label="Note title"/>
@@ -1023,8 +1047,14 @@ export default function BibleStudyApp() {
                 ))}
               </div>
             )}
-            <button onClick={saveNote} disabled={!nTitle.trim()} style={{...btn("gold"),width:"100%",justifyContent:"center",opacity:nTitle.trim()?1:.45,minHeight:44}}>
-              <i className="ti ti-device-floppy" aria-hidden="true"/>Save Note
+            {saveError && (
+              <div style={{ background:"rgba(192,57,43,.1)", border:"1px solid rgba(192,57,43,.4)", borderRadius:8, padding:"9px 12px", marginBottom:8, fontSize:12, color:"#C0392B", lineHeight:1.55 }}>
+                {saveError}
+              </div>
+            )}
+            <button onClick={saveNote} disabled={!nTitle.trim() || saving} style={{...btn("gold"),width:"100%",justifyContent:"center",opacity:(nTitle.trim()&&!saving)?1:.45,minHeight:44}}>
+              <i className={`ti ${saving?"ti-loader-2":"ti-device-floppy"}`} aria-hidden="true"/>
+              {saving ? "Saving…" : "Save Note"}
             </button>
           </div>
         </div>
