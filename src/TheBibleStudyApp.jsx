@@ -616,6 +616,7 @@ export default function BibleStudyApp() {
   const mediaRecRef   = useRef(null);
   const chunksRef     = useRef([]);
   const audioBlobRef  = useRef(null);
+  const audioReadyRef = useRef(null); // Promise<base64 string> resolved by onstop — awaited in saveNote
   const mimeTypeRef   = useRef("");
 
   const [aiMsgs, setAI] = useState([{ role:"assistant", content:"Shalom! I'm your KJV Bible study companion. Ask me anything — theology, history, Greek & Hebrew word studies, or chapter expositions." }]);
@@ -708,14 +709,17 @@ export default function BibleStudyApp() {
   }
 
   async function loadRecordings(noteId) {
-    try {
-      const { data, error } = await supabase
-        .from("recordings")
-        .select("*")
-        .eq("note_id", noteId)
-        .order("created_at", { ascending: true });
-      if (!error && data) setRecordings(data);
-    } catch { /* non-fatal */ }
+    const { data, error } = await supabase
+      .from("recordings")
+      .select("*")
+      .eq("note_id", noteId)
+      .order("created_at", { ascending: true });
+    if (error) {
+      console.error("[loadRecordings] Supabase error:", error.message, error);
+      return;
+    }
+    console.log("[loadRecordings]", data?.length ?? 0, "recording(s) for note", noteId);
+    if (data) setRecordings(data);
   }
 
   async function deleteRecording(recId) {
@@ -735,12 +739,21 @@ export default function BibleStudyApp() {
         const mr   = new MediaRecorder(stream, opts);
         mr.ondataavailable = e => { if (e.data && e.data.size > 0) chunksRef.current.push(e.data); };
         mr.onstop = () => {
-          const blob = new Blob(chunksRef.current, { type: mimeTypeRef.current || "audio/webm" });
+          stream.getTracks().forEach(t => t.stop());
+          if (chunksRef.current.length === 0) {
+            console.error("[recording] onstop — no chunks captured, recording is empty");
+            return;
+          }
+          // Strip codec params from MIME type — avoids semicolon in data URL breaking browser parsing
+          const storageMime = (mimeTypeRef.current || "audio/webm").split(";")[0];
+          const blob = new Blob(chunksRef.current, { type: storageMime });
+          console.log("[recording] onstop — chunks:", chunksRef.current.length, "blob size:", blob.size, "mime:", storageMime);
           audioBlobRef.current = blob;
-          const url  = URL.createObjectURL(blob);
+          // Start base64 conversion immediately so it is ready when saveNote runs (fixes race condition)
+          audioReadyRef.current = blobToBase64(blob);
+          const url = URL.createObjectURL(blob);
           setAudioUrl(url);
           setHA(true);
-          stream.getTracks().forEach(t => t.stop());
         };
         mr.start(100); // 100ms timeslice — ensures ondataavailable fires on iOS Safari
         mediaRecRef.current = mr;
@@ -771,6 +784,7 @@ export default function BibleStudyApp() {
     if (audioUrl) { URL.revokeObjectURL(audioUrl); }
     setAudioUrl(null);
     audioBlobRef.current = null;
+    audioReadyRef.current = null;
     setRecordings([]);
     setEID(note.id);
     setSE(true);
@@ -821,24 +835,31 @@ export default function BibleStudyApp() {
         }
       }
 
-      if (audioBlobRef.current && savedNoteId) {
-        const audioData = await blobToBase64(audioBlobRef.current);
+      const pendingAudio = audioReadyRef.current;
+      if (pendingAudio && savedNoteId) {
+        const audioData = await pendingAudio; // waits for base64 conversion even if Save clicked immediately after Stop
+        const mimeForStorage = (mimeTypeRef.current || "audio/webm").split(";")[0];
         const label = new Date().toLocaleString("en-US", { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" });
-        const { error: recErr } = await supabase.from("recordings").insert({
+        console.log("[recordings] inserting — data size:", audioData.length, "mime:", mimeForStorage, "note:", savedNoteId);
+        const { data: recData, error: recErr } = await supabase.from("recordings").insert({
           note_id:    savedNoteId,
           label,
           audio_data: audioData,
           duration:   recT,
-          mime_type:  mimeTypeRef.current || "audio/webm",
-        });
+          mime_type:  mimeForStorage,
+        }).select().single();
+        console.log("[recordings] insert result:", { data: recData, error: recErr });
         if (recErr) {
           console.error("[recordings] insert failed:", recErr);
           throw new Error("Note saved — but recording failed to persist: " + recErr.message);
         }
+        audioReadyRef.current = null;
         audioBlobRef.current = null;
       }
 
       // Success — close editor and reset all fields
+      audioReadyRef.current = null;
+      audioBlobRef.current  = null;
       setEID(null);
       setNT(""); setNR(""); setNText(""); setNTg("");
       setHA(false); setHI(false); setRec(false); setDraw(null);
@@ -988,6 +1009,7 @@ export default function BibleStudyApp() {
                 clearInterval(recRef.current);
                 if (audioUrl) { URL.revokeObjectURL(audioUrl); }
                 audioBlobRef.current = null;
+                audioReadyRef.current = null;
                 setAudioUrl(null); setEID(null); setRec(false); setSC(false); setSE(false);
                 setRecordings([]); setSaveError(null); setSaving(false);
               }} style={{ background:"none", border:"none", cursor:"pointer", color:T.muted, padding:4 }}><i className="ti ti-x" style={{fontSize:20}} aria-hidden="true"/></button>
@@ -1027,8 +1049,8 @@ export default function BibleStudyApp() {
             {audioUrl && (
               <div style={{ marginBottom:14 }}>
                 <div style={{ fontSize:11, color:T.muted, marginBottom:5 }}>✦ Audio recorded — play back below</div>
-                <audio controls src={audioUrl} style={{ width:"100%", borderRadius:8 }} />
-                <button onClick={() => { URL.revokeObjectURL(audioUrl); setAudioUrl(null); setHA(false); audioBlobRef.current = null; }} style={{...btn(),marginTop:6,fontSize:10,padding:"4px 10px"}}>Remove audio</button>
+                <audio controls src={audioUrl} style={{ width:"100%", borderRadius:8 }} onError={e => console.error("[audio] blob playback error:", e.target.error)} />
+                <button onClick={() => { URL.revokeObjectURL(audioUrl); setAudioUrl(null); setHA(false); audioBlobRef.current = null; audioReadyRef.current = null; }} style={{...btn(),marginTop:6,fontSize:10,padding:"4px 10px"}}>Remove audio</button>
               </div>
             )}
             {editingNoteId && recordings.length > 0 && (
@@ -1042,7 +1064,7 @@ export default function BibleStudyApp() {
                         <i className="ti ti-trash" aria-hidden="true"/>
                       </button>
                     </div>
-                    <audio controls src={rec.audio_data} style={{ width:"100%", borderRadius:6 }} />
+                    <audio controls src={rec.audio_data} style={{ width:"100%", borderRadius:6 }} onError={e => console.error("[audio] saved recording error, id:", rec.id, e.target.error)} />
                   </div>
                 ))}
               </div>
