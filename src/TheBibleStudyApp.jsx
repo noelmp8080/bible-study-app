@@ -721,14 +721,18 @@ export default function BibleStudyApp() {
     console.log("[loadRecordings]", data?.length ?? 0, "recording(s) for note", noteId);
     if (data) {
       const mapped = data.map((rec, i) => {
+        if (!rec.audio_data) {
+          console.warn(`[loadRecordings] rec[${i}] id=${rec.id} has no audio_data — skipped`);
+          return null;
+        }
         const isFullUrl = typeof rec.audio_data === "string" && rec.audio_data.startsWith("data:");
-        // Strip codec params (e.g. audio/webm;codecs=opus → audio/webm) — data URL prefix must be plain MIME
+        // Strip codec params from the data URL prefix — semicolons in MIME params break data URL parsing
         const playSrc = isFullUrl
           ? rec.audio_data
           : `data:${(rec.mime_type || "audio/mp4").split(";")[0]};base64,${rec.audio_data}`;
         console.log(`[loadRecordings] rec[${i}]`, rec.mime_type, "data length:", rec.audio_data?.length);
         return { ...rec, playSrc };
-      });
+      }).filter(Boolean);
       setRecordings(mapped);
     }
   }
@@ -739,7 +743,7 @@ export default function BibleStudyApp() {
   }
 
   function getSupportedMimeType() {
-    const types = ['audio/mp4', 'audio/aac', 'audio/webm;codecs=opus', 'audio/webm'];
+    const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4'];
     return types.find(type => { try { return MediaRecorder.isTypeSupported(type); } catch { return false; } }) || '';
   }
 
@@ -762,12 +766,16 @@ export default function BibleStudyApp() {
 
   function toggleRec() {
     if (!recOn) {
-      // Clear any stale Promise/blob from a previous recording session before starting a new one
-      audioReadyRef.current = null;
-      audioBlobRef.current  = null;
-      chunksRef.current     = [];
+      // Clear any stale blob from a previous recording session
+      audioBlobRef.current = null;
+      chunksRef.current    = [];
       const mimeType = getSupportedMimeType();
       mimeTypeRef.current = mimeType;
+      // Create the Promise BEFORE getUserMedia so saveNote can await it even if the user
+      // taps Save immediately after Stop — before onstop fires (fixes the stop→save race).
+      let resolveAudio;
+      const audioPromise = new Promise(res => { resolveAudio = res; });
+      audioReadyRef.current = audioPromise;
       navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
         chunksRef.current = [];
         const opts = mimeType ? { mimeType } : {};
@@ -780,15 +788,21 @@ export default function BibleStudyApp() {
           stream.getTracks().forEach(t => t.stop());
           if (chunksRef.current.length === 0) {
             console.error("[recording] onstop — no chunks captured, recording is empty");
+            resolveAudio(null);
             return;
           }
-          // Strip codec params from MIME type — avoids semicolon in data URL breaking browser parsing
+          // Strip codec params from MIME type — semicolons in MIME params break data URL parsing
           const storageMime = (mimeTypeRef.current || "audio/webm").split(";")[0];
           const blob = new Blob(chunksRef.current, { type: storageMime });
           console.log("[recording] onstop — chunks:", chunksRef.current.length, "blob size:", blob.size, "mime:", storageMime);
+          if (blob.size === 0) {
+            console.error("[recording] blob is zero bytes");
+            resolveAudio(null);
+            return;
+          }
           audioBlobRef.current = blob;
-          // Start base64 conversion immediately so it is ready when saveNote runs (fixes race condition)
-          audioReadyRef.current = blobToBase64(blob);
+          // Resolve the shared Promise with the base64 string; saveNote awaits it
+          blobToBase64(blob).then(resolveAudio).catch(() => resolveAudio(null));
           const url = URL.createObjectURL(blob);
           setAudioUrl(url);
           setHA(true);
@@ -799,6 +813,7 @@ export default function BibleStudyApp() {
         setRT(0);
         recRef.current = setInterval(() => setRT(t => t + 1), 1000);
       }).catch(() => {
+        audioReadyRef.current = null; // discard the pending Promise — no mic access
         alert("Microphone access was denied or is unavailable on this device.");
       });
     } else {
@@ -833,6 +848,13 @@ export default function BibleStudyApp() {
     if (!nTitle.trim()) return;
     setSaving(true);
     setSaveError(null);
+    // If recording is still in progress, stop it now.
+    // onstop will resolve audioReadyRef.current which we await below.
+    if (recOn && mediaRecRef.current && mediaRecRef.current.state !== "inactive") {
+      mediaRecRef.current.stop();
+      clearInterval(recRef.current);
+      setRec(false);
+    }
     try {
       const tags = nTags.split(",").map(t => t.trim()).filter(Boolean);
       const ref  = nRef.trim() || `${bookName} ${chapter}`;
@@ -877,7 +899,8 @@ export default function BibleStudyApp() {
 
       const pendingAudio = audioReadyRef.current;
       if (pendingAudio && savedNoteId) {
-        const audioData = await pendingAudio; // waits for base64 conversion even if Save clicked immediately after Stop
+        const audioData = await pendingAudio; // waits for onstop + base64 — resolves even if saved immediately after stop
+        if (!audioData) throw new Error("Recording appears to be empty — please try again.");
         const mimeForStorage = (mimeTypeRef.current || "audio/webm").split(";")[0];
         // Extract raw base64 — store without the "data:...;base64," prefix so we control data URL construction at play time
         const rawBase64 = audioData.includes(",") ? audioData.split(",")[1] : audioData;
