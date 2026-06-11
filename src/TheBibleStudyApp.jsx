@@ -574,6 +574,35 @@ function SettingsContent({ T, isDesktop, isMobile, isTablet, theme, changeTheme,
   );
 }
 
+// ─── AUDIO HELPERS ────────────────────────────────────────────────────────────
+
+// Sniff real MIME type from first 8 bytes.
+// WebM: starts with 1A 45 DF A3. MP4: "ftyp" box at bytes 4-7.
+function sniffMime(bytes, fallback) {
+  if (bytes.length >= 4 &&
+      bytes[0] === 0x1A && bytes[1] === 0x45 && bytes[2] === 0xDF && bytes[3] === 0xA3)
+    return "audio/webm";
+  if (bytes.length >= 8 &&
+      bytes[4] === 0x66 && bytes[5] === 0x74 && bytes[6] === 0x79 && bytes[7] === 0x70)
+    return "audio/mp4";
+  return fallback || "audio/mp4";
+}
+
+// Decode raw base64 → sniff mime → Blob → blob: URL.
+// Returns { url, mime } or null on failure.
+function base64ToBlobURL(rawBase64, fallbackMime) {
+  try {
+    const bin   = atob(rawBase64);
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const mime = sniffMime(bytes, fallbackMime);
+    return { url: URL.createObjectURL(new Blob([bytes], { type: mime })), mime };
+  } catch (e) {
+    console.error("[base64ToBlobURL] decode failed:", e.message);
+    return null;
+  }
+}
+
 // ─── MAIN APP ─────────────────────────────────────────────────────────────────
 export default function BibleStudyApp() {
   const rootRef = useRef(null);
@@ -616,8 +645,9 @@ export default function BibleStudyApp() {
   const mediaRecRef   = useRef(null);
   const chunksRef     = useRef([]);
   const audioBlobRef  = useRef(null);
-  const audioReadyRef = useRef(null); // Promise<base64 string> resolved by onstop — awaited in saveNote
-  const mimeTypeRef   = useRef("");
+  const audioReadyRef    = useRef(null); // Promise<base64 string> resolved by onstop — awaited in saveNote
+  const mimeTypeRef      = useRef("");
+  const recBlobUrlsRef   = useRef([]);  // blob: URLs created from saved recordings; revoked on replace/unmount
 
   const [aiMsgs, setAI] = useState([{ role:"assistant", content:"Shalom! I'm your KJV Bible study companion. Ask me anything — theology, history, Greek & Hebrew word studies, or chapter expositions." }]);
   const [aiIn, setAIn]  = useState("");
@@ -644,9 +674,19 @@ export default function BibleStudyApp() {
   const isTablet  = cw >= 640 && cw < 1024;
   const isDesktop = cw >= 1024;
 
+  const [audioErrors, setAudioErrors] = useState(new Set());
+
+  // Revoke all blob: URLs created for saved-recording playback
+  function revokeRecordingBlobURLs() {
+    recBlobUrlsRef.current.forEach(u => URL.revokeObjectURL(u));
+    recBlobUrlsRef.current = [];
+  }
+
   useEffect(() => { loadPrefs(); loadNotes(); }, []);
   useEffect(() => { fetchCh(); }, [bookName, chapter]);
   useEffect(() => { chatEnd.current?.scrollIntoView({ behavior:"smooth" }); }, [aiMsgs, aiLd]);
+  // Revoke recording blob URLs when the component unmounts
+  useEffect(() => () => revokeRecordingBlobURLs(), []);
 
   async function loadPrefs() {
     const { data } = await supabase.from("preferences").select("*").limit(1).maybeSingle();
@@ -720,26 +760,47 @@ export default function BibleStudyApp() {
     }
     console.log("[loadRecordings]", data?.length ?? 0, "recording(s) for note", noteId);
     if (data) {
+      // Revoke any blob URLs from a previous note before replacing the list
+      revokeRecordingBlobURLs();
+      setAudioErrors(new Set());
+
       const mapped = data.map((rec, i) => {
         if (!rec.audio_data) {
           console.warn(`[loadRecordings] rec[${i}] id=${rec.id} has no audio_data — skipped`);
-          return null;
+          return { ...rec, playSrc: null, unplayable: true };
         }
+        // Handle legacy rows that stored the full data URL instead of raw base64
         const isFullUrl = typeof rec.audio_data === "string" && rec.audio_data.startsWith("data:");
-        // Strip codec params from the data URL prefix — semicolons in MIME params break data URL parsing
-        const playSrc = isFullUrl
-          ? rec.audio_data
-          : `data:${(rec.mime_type || "audio/mp4").split(";")[0]};base64,${rec.audio_data}`;
-        console.log(`[loadRecordings] rec[${i}]`, rec.mime_type, "data length:", rec.audio_data?.length);
-        return { ...rec, playSrc };
-      }).filter(Boolean);
+        const rawBase64 = isFullUrl ? rec.audio_data.split(",")[1] : rec.audio_data;
+
+        // Decode base64 → sniff real MIME from magic bytes → Blob → blob: URL.
+        // iOS Safari cannot play audio from data: URLs; blob: URLs match the pre-save
+        // playback path that already works on the device.
+        const result = base64ToBlobURL(rawBase64, rec.mime_type || "audio/mp4");
+        if (!result) {
+          console.warn(`[loadRecordings] rec[${i}] id=${rec.id} could not be decoded`);
+          return { ...rec, playSrc: null, unplayable: true };
+        }
+        recBlobUrlsRef.current.push(result.url);
+        console.log(`[loadRecordings] rec[${i}] sniffed=${result.mime} stored=${rec.mime_type} b64len=${rawBase64.length}`);
+        return { ...rec, playSrc: result.url };
+      });
       setRecordings(mapped);
     }
   }
 
   async function deleteRecording(recId) {
     const { error } = await supabase.from("recordings").delete().eq("id", recId);
-    if (!error) setRecordings(p => p.filter(r => r.id !== recId));
+    if (!error) {
+      setRecordings(p => {
+        const removed = p.find(r => r.id === recId);
+        if (removed?.playSrc?.startsWith("blob:")) {
+          URL.revokeObjectURL(removed.playSrc);
+          recBlobUrlsRef.current = recBlobUrlsRef.current.filter(u => u !== removed.playSrc);
+        }
+        return p.filter(r => r.id !== recId);
+      });
+    }
   }
 
   function getSupportedMimeType() {
@@ -758,7 +819,9 @@ export default function BibleStudyApp() {
     setNT(""); setNR(""); setNText(""); setNTg("");
     setHA(false); setHI(false); setRec(false); setRT(0); setDraw(null); setSC(false);
     setAudioUrl(null);
+    revokeRecordingBlobURLs();
     setRecordings([]);
+    setAudioErrors(new Set());
     setSaveError(null);
     setSaving(false);
     setSE(true);
@@ -838,7 +901,9 @@ export default function BibleStudyApp() {
     setAudioUrl(null);
     audioBlobRef.current = null;
     audioReadyRef.current = null;
+    revokeRecordingBlobURLs();
     setRecordings([]);
+    setAudioErrors(new Set());
     setEID(note.id);
     setSE(true);
     loadRecordings(note.id);
@@ -938,7 +1003,9 @@ export default function BibleStudyApp() {
       setHA(false); setHI(false); setRec(false); setDraw(null);
       if (audioUrl && audioUrl.startsWith("blob:")) URL.revokeObjectURL(audioUrl);
       setAudioUrl(null);
+      revokeRecordingBlobURLs();
       setRecordings([]);
+      setAudioErrors(new Set());
       clearInterval(recRef.current);
       setSE(false);
     } catch (err) {
@@ -1145,13 +1212,29 @@ export default function BibleStudyApp() {
                         <i className="ti ti-trash" aria-hidden="true"/>
                       </button>
                     </div>
-                    <audio
-                      key={rec.playSrc}
-                      controls
-                      src={rec.playSrc}
-                      style={{ width:"100%", borderRadius:6 }}
-                      onError={e => console.error('[AUDIO ERROR]', e.target.error?.code, e.target.error?.message)}
-                    />
+                    {rec.unplayable ? (
+                      <div style={{ fontSize:11, color:T.muted, padding:"4px 0" }}>
+                        ⚠ Audio could not be loaded — please re-record.
+                      </div>
+                    ) : (
+                      <>
+                        <audio
+                          key={rec.playSrc}
+                          controls
+                          src={rec.playSrc}
+                          style={{ width:"100%", borderRadius:6 }}
+                          onError={e => {
+                            console.error("[AUDIO ERROR]", e.target.error?.code, e.target.error?.message);
+                            setAudioErrors(prev => new Set([...prev, rec.id]));
+                          }}
+                        />
+                        {audioErrors.has(rec.id) && (
+                          <div style={{ fontSize:11, color:"#C0392B", marginTop:4 }}>
+                            ⚠ Playback failed — audio may be from an incompatible recording session. Please re-record.
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 ))}
               </div>
