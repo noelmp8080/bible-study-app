@@ -566,6 +566,7 @@ function SettingsContent({ T, isDesktop, isMobile, isTablet, theme, changeTheme,
             <div style={{ fontSize:15, fontWeight:500, color:T.text, marginBottom:4 }}>The Bible Study App</div>
             <div style={{ fontSize:13, color:T.muted, lineHeight:1.75 }}>A full-featured KJV Bible companion with AI-powered insights, concordance, Bible dictionary, rich notes with Apple Pencil drawing — fully responsive across phone, iPad, and desktop. Notes and highlights sync to Supabase across all your devices.</div>
             <div style={{ fontSize:11, color:GOLD, marginTop:8 }}>Version 2.0 · KJV Only · Powered by Claude AI · Synced via Supabase</div>
+            <div style={{ fontSize:10, color:T.muted, marginTop:4, fontFamily:"monospace" }}>Build: {__COMMIT_HASH__}</div>
           </div>
         </div>
         <div style={{height:12}}/>
@@ -641,6 +642,7 @@ export default function BibleStudyApp() {
   const [recordings, setRecordings] = useState([]);
   const [saving, setSaving]         = useState(false);
   const [saveError, setSaveError]   = useState(null);
+  const [toast, setToast]           = useState(null);
   const recRef        = useRef(null);
   const mediaRecRef   = useRef(null);
   const chunksRef     = useRef([]);
@@ -971,18 +973,27 @@ export default function BibleStudyApp() {
         const rawBase64 = audioData.includes(",") ? audioData.split(",")[1] : audioData;
         const label = new Date().toLocaleString("en-US", { month:"short", day:"numeric", hour:"numeric", minute:"2-digit" });
         console.log("[recordings] inserting", mimeForStorage, "base64 size:", rawBase64.length);
-        const { data: recData, error: recErr } = await supabase.from("recordings").insert({
-          note_id:    savedNoteId,
-          label,
-          audio_data: rawBase64,
-          duration:   recT,
-          mime_type:  mimeForStorage,
-        }).select().single();
+        // 12-second timeout — offline at church is a real scenario
+        const { data: recData, error: recErr } = await Promise.race([
+          supabase.from("recordings").insert({
+            note_id:    savedNoteId,
+            label,
+            audio_data: rawBase64,
+            duration:   recT,
+            mime_type:  mimeForStorage,
+          }).select().single(),
+          new Promise((_, reject) =>
+            setTimeout(() => reject(new Error("Recording not saved — connection timed out. Check your network and try again.")), 12000)
+          ),
+        ]);
         console.log("[recordings] insert result:", { data: recData, error: recErr });
         if (recErr) {
           console.error("[recordings] insert failed:", recErr);
           throw new Error("Note saved — but recording failed to persist: " + recErr.message);
         }
+        // Show success toast (visible after editor closes)
+        setToast("✦ Recording saved");
+        setTimeout(() => setToast(null), 4000);
         // Revoke the ephemeral blob URL now that the recording is persisted
         if (audioUrl && audioUrl.startsWith("blob:")) URL.revokeObjectURL(audioUrl);
         setAudioUrl(null);
@@ -1252,6 +1263,11 @@ export default function BibleStudyApp() {
         </div>
       )}
 
+      {toast && (
+        <div style={{ position:"fixed", bottom:80, left:"50%", transform:"translateX(-50%)", background:"rgba(20,110,50,0.95)", color:"#fff", borderRadius:12, padding:"11px 22px", fontSize:13, fontWeight:500, zIndex:10000, maxWidth:"85vw", textAlign:"center", boxShadow:"0 4px 16px rgba(0,0,0,0.3)", pointerEvents:"none" }}>
+          {toast}
+        </div>
+      )}
       <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.65}}*{box-sizing:border-box}body{margin:0}`}</style>
     </div>
   );
