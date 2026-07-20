@@ -1182,8 +1182,13 @@ export default function BibleStudyApp() {
   const dictF = Object.entries(DICT).filter(([k]) => dQ ? k.toLowerCase().includes(dQ.toLowerCase()) : true);
   const fmt   = t => `${Math.floor(t/60)}:${String(t%60).padStart(2,"0")}`;
 
-  const overlay = { position:"fixed", inset:0, background:"rgba(0,0,0,.6)", zIndex:20, display:"flex", flexDirection:"column", justifyContent:"flex-end" };
+  // zIndex 200 keeps sheets above the fixed bottom nav bar (zIndex 50)
+  const overlay = { position:"fixed", inset:0, background:"rgba(0,0,0,.6)", zIndex:200, display:"flex", flexDirection:"column", justifyContent:"flex-end" };
   const sheet   = (big) => ({ background:T.bg, borderRadius:0, padding:isTablet||isDesktop?22:16, maxHeight:big?"85vh":"70vh", overflowY:"auto", borderTop:`2px solid ${T.accent}` });
+  /* Book/chapter pickers open near the chips (top of the screen) instead of
+     as a bottom sheet, on every breakpoint. */
+  const pickerOverlay = { position:"fixed", inset:0, background:"rgba(0,0,0,.6)", zIndex:200, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"flex-start", padding:"64px 12px 12px", boxSizing:"border-box" };
+  const pickerSheet   = (big) => ({ background:T.bg, borderRadius:0, padding:isTablet||isDesktop?22:16, maxHeight:big?"78vh":"66vh", overflowY:"auto", width:"100%", maxWidth:720, border:`1px solid ${T.border}`, borderTop:`2px solid ${T.accent}`, boxShadow:"0 12px 40px rgba(0,0,0,.25)", boxSizing:"border-box" });
   const inp     = mkInp(T);
   const btn     = (v="def") => mkBtn(T, isTablet, isDesktop, v);
 
@@ -1204,8 +1209,8 @@ export default function BibleStudyApp() {
 
       {/* ══ BOOK PICKER ════════════════════════════════════════════════════ */}
       {showBP && (
-        <div style={overlay} onClick={() => setSBP(false)}>
-          <div style={sheet(true)} onClick={e => e.stopPropagation()}>
+        <div style={pickerOverlay} onClick={() => setSBP(false)}>
+          <div style={pickerSheet(true)} onClick={e => e.stopPropagation()}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
               <span style={{ fontSize:20, color:T.heading, fontFamily:SERIF_DISPLAY }}>Select Book</span>
               <button onClick={() => setSBP(false)} style={{ background:"none", border:"none", cursor:"pointer", color:T.muted, padding:4 }}><i className="ti ti-x" style={{fontSize:20}} aria-hidden="true"/></button>
@@ -1229,8 +1234,8 @@ export default function BibleStudyApp() {
 
       {/* ══ CHAPTER PICKER ═════════════════════════════════════════════════ */}
       {showCP && (
-        <div style={overlay} onClick={() => setSCP(false)}>
-          <div style={sheet(false)} onClick={e => e.stopPropagation()}>
+        <div style={pickerOverlay} onClick={() => setSCP(false)}>
+          <div style={pickerSheet(false)} onClick={e => e.stopPropagation()}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
               <span style={{ fontSize:17, fontWeight:500, color:T.text }}>{bookName} — Chapter</span>
               <button onClick={() => setSCP(false)} style={{ background:"none", border:"none", cursor:"pointer", color:T.muted, padding:4 }}><i className="ti ti-x" style={{fontSize:20}} aria-hidden="true"/></button>
