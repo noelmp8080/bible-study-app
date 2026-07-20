@@ -394,7 +394,7 @@ function ReaderContent({ T, isDesktop, isTablet, isMobile, bookName, chapter, ma
         </div>
         <div style={{ flex:1, minWidth:0, position:"relative", display:"flex", flexDirection:"column", minHeight:0 }}>
           <div style={{ flex:1, overflowY:"auto", padding:"36px 48px 0" }}>
-            <div style={{ maxWidth:600 }}>{versesJsx}</div>
+            <div style={{ maxWidth:960 }}>{versesJsx}</div>
           </div>
           <div style={{ position:"absolute", left:0, right:0, bottom:0, height:70, background:`linear-gradient(transparent, ${T.bg})`, pointerEvents:"none" }}/>
         </div>
