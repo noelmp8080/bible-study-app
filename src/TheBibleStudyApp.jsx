@@ -62,12 +62,36 @@ const DICT = {
   "Zoe":           { type:"Greek: ζωή (zōē)",                 def:"Life — particularly spiritual, eternal, divine life. Distinguished from bios (biological life) and psyche (soul-life). Christ is the Zoe (John 14:6). Eternal zoe is to know the only true God and Jesus Christ (John 17:3)." },
 };
 
+/* "The Journal" editorial direction — Instrument Serif display, Archivo UI,
+   Source Serif 4 scripture. `header` is the ink color (solid chips/buttons),
+   `headerText` its foreground; `accent` the editorial red; `hl` the verse-
+   highlight paper tone. Theme ids are unchanged so saved prefs keep working. */
 const THEMES = {
-  light: { bg:"#F8F4EC", surface:"#FFFFFF", surface2:"#EDE8DC", text:"#1C1C1E", muted:"#6B7280", header:"#0D1B2A", border:"rgba(0,0,0,0.09)", input:"#F0EBE0" },
-  dark:  { bg:"#0D1420", surface:"#1A2333", surface2:"#243040", text:"#F0EDE6", muted:"#8892A0", header:"#070D15", border:"rgba(255,255,255,0.09)", input:"#1E2B3C" },
-  sepia: { bg:"#F5EFDC", surface:"#FBF6EA", surface2:"#EDE0C4", text:"#3B2D1E", muted:"#8B7355", header:"#2C1F0E", border:"rgba(0,0,0,0.11)", input:"#EBE0C8" },
+  light: { bg:"#faf9f6", surface:"#ffffff", surface2:"#f1eee7", text:"#181614", scripture:"#26221e",
+           heading:"#181614", muted:"#9b948a", header:"#181614", headerText:"#faf9f6",
+           border:"#e2ded6", input:"#f1eee7", accent:"#8a2318", hl:"#f3ead9",
+           accentSoft:"rgba(138,35,24,.07)", accentBorder:"rgba(138,35,24,.28)", chrome:"#faf9f6" },
+  dark:  { bg:"#141210", surface:"#1c1917", surface2:"#211d1a", text:"#e6e1d8", scripture:"#d9d3c8",
+           heading:"#f2ede3", muted:"#6f6a62", header:"#e6e1d8", headerText:"#141210",
+           border:"#2b2723", input:"#211d1a", accent:"#d06a52", hl:"#2e2419",
+           accentSoft:"rgba(208,106,82,.09)", accentBorder:"rgba(208,106,82,.32)", chrome:"#171412" },
+  sepia: { bg:"#f5efdc", surface:"#fbf6ea", surface2:"#ede4cc", text:"#3b2d1e", scripture:"#463522",
+           heading:"#2c2013", muted:"#8b7355", header:"#2c2013", headerText:"#f5efdc",
+           border:"#e0d5b8", input:"#ede4cc", accent:"#8a2318", hl:"#ecdfc0",
+           accentSoft:"rgba(138,35,24,.07)", accentBorder:"rgba(138,35,24,.28)", chrome:"#f5efdc" },
 };
-const GOLD = "#C9A84C";
+const SERIF_DISPLAY = "'Instrument Serif',Georgia,serif";
+const SERIF_BODY    = "'Source Serif 4',Georgia,serif";
+const SANS          = "'Archivo',system-ui,sans-serif";
+const EYEBROW = { fontSize:10, letterSpacing:".26em", textTransform:"uppercase", fontWeight:700 };
+
+const CH_ONES = ["","One","Two","Three","Four","Five","Six","Seven","Eight","Nine","Ten","Eleven","Twelve","Thirteen","Fourteen","Fifteen","Sixteen","Seventeen","Eighteen","Nineteen"];
+const CH_TENS = ["","","Twenty","Thirty","Forty","Fifty","Sixty","Seventy","Eighty","Ninety"];
+function chapterWord(n) {
+  if (n < 20)  return CH_ONES[n];
+  if (n < 100) { const t = Math.floor(n/10), o = n%10; return CH_TENS[t] + (o ? "-" + CH_ONES[o] : ""); }
+  return "One Hundred" + (n > 100 ? " " + chapterWord(n - 100) : "");
+}
 const DAILY = [
   { ref:"Proverbs 3:5",     text:"Trust in the LORD with all thine heart; and lean not unto thine own understanding." },
   { ref:"Philippians 4:13", text:"I can do all things through Christ which strengtheneth me." },
@@ -85,22 +109,24 @@ function bookKey(name) {
 }
 
 // ─── MODULE-LEVEL STYLE HELPERS ───────────────────────────────────────────────
+/* Editorial buttons: solid ink chip by default (like the design's KJV chip),
+   accent red for the primary action, square corners throughout. */
 function mkBtn(T, isTablet, isDesktop, v = "def") {
   return {
-    background: v==="gold" ? GOLD : v==="red" ? "#C0392B" : T.header,
-    border: "none", borderRadius: 20,
-    padding: isTablet||isDesktop ? "9px 18px" : "7px 14px",
-    color: v==="gold" ? "#0D1B2A" : "#F0EDE6",
-    fontSize: isDesktop ? 13 : 12, cursor: "pointer",
+    background: v==="gold" ? T.accent : v==="red" ? "#C0392B" : T.header,
+    border: "none", borderRadius: 2,
+    padding: isTablet||isDesktop ? "9px 16px" : "7px 13px",
+    color: v==="gold" || v==="red" ? "#fff" : T.headerText,
+    fontSize: isDesktop ? 12.5 : 12, fontWeight: 600, cursor: "pointer",
     fontFamily: "inherit", display: "flex", alignItems: "center",
-    gap: 5, transition: "opacity .15s", whiteSpace: "nowrap",
+    gap: 6, transition: "opacity .15s", whiteSpace: "nowrap",
   };
 }
 function mkCard(T, isDesktop) {
-  return { background: T.surface, borderRadius: 14, padding: isDesktop ? "16px 18px" : "13px 15px", border: `1px solid ${T.border}`, marginBottom: 10 };
+  return { background: T.surface, borderRadius: 2, padding: isDesktop ? "16px 18px" : "13px 15px", border: `1px solid ${T.border}`, marginBottom: 10 };
 }
 function mkInp(T) {
-  return { width: "100%", background: T.input, border: `1px solid ${T.border}`, borderRadius: 10, padding: "9px 12px", fontSize: 13, fontFamily: "inherit", color: T.text, outline: "none", boxSizing: "border-box" };
+  return { width: "100%", background: T.input, border: `1px solid ${T.border}`, borderRadius: 2, padding: "10px 12px", fontSize: 13, fontFamily: "inherit", color: T.text, outline: "none", boxSizing: "border-box" };
 }
 
 // ─── DRAWING CANVAS ───────────────────────────────────────────────────────────
@@ -174,7 +200,7 @@ function DrawingCanvas({ onSave, onClose, T }) {
     ctx.fillStyle="white"; ctx.fillRect(0,0,c.width,c.height);
   }
   const tbtn = (id,ico,lbl) => (
-    <button key={id} onClick={()=>setTool(id)} style={{ background:tool===id?GOLD:"transparent", border:`1px solid ${tool===id?GOLD:T.border}`, borderRadius:8, padding:"6px 10px", cursor:"pointer", display:"flex", alignItems:"center", gap:4, color:tool===id?"#0D1B2A":T.text, fontSize:12, fontFamily:"inherit" }}>
+    <button key={id} onClick={()=>setTool(id)} style={{ background:tool===id?T.accent:"transparent", border:`1px solid ${tool===id?T.accent:T.border}`, borderRadius:2, padding:"6px 10px", cursor:"pointer", display:"flex", alignItems:"center", gap:4, color:tool===id?"#fff":T.text, fontSize:12, fontFamily:"inherit" }}>
       <i className={`ti ${ico}`} style={{fontSize:15}} aria-hidden="true"/>{lbl}
     </button>
   );
@@ -187,17 +213,17 @@ function DrawingCanvas({ onSave, onClose, T }) {
         <div style={{ width:1, height:22, background:T.border, margin:"0 4px" }}/>
         <div style={{ display:"flex", gap:5, flexWrap:"wrap" }}>
           {PEN_COLORS.map(c=>(
-            <button key={c} onClick={()=>setPC(c)} style={{ width:22, height:22, borderRadius:"50%", background:c, border:`2.5px solid ${penColor===c?GOLD:"transparent"}`, cursor:"pointer", flexShrink:0 }} aria-label={`Color ${c}`}/>
+            <button key={c} onClick={()=>setPC(c)} style={{ width:22, height:22, borderRadius:"50%", background:c, border:`2.5px solid ${penColor===c?T.accent:"transparent"}`, cursor:"pointer", flexShrink:0 }} aria-label={`Color ${c}`}/>
           ))}
         </div>
         <div style={{ marginLeft:"auto", display:"flex", gap:5 }}>
-          <button onClick={undo} style={{ background:T.header, border:"none", borderRadius:8, padding:"6px 10px", color:"#F0EDE6", fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", gap:3, fontFamily:"inherit" }}>
+          <button onClick={undo} style={{ background:T.header, border:"none", borderRadius:2, padding:"6px 10px", color:T.headerText, fontSize:12, cursor:"pointer", display:"flex", alignItems:"center", gap:3, fontFamily:"inherit" }}>
             <i className="ti ti-arrow-back-up" style={{fontSize:14}} aria-hidden="true"/>Undo
           </button>
           <button onClick={clearAll} style={{ background:"rgba(192,57,43,.12)", border:"none", borderRadius:8, padding:"6px 10px", color:"#C0392B", fontSize:12, cursor:"pointer", fontFamily:"inherit" }}>Clear</button>
         </div>
       </div>
-      <div style={{ background:tool==="eraser"?"rgba(192,57,43,.06)":tool==="hi"?"rgba(201,168,76,.06)":"rgba(13,27,42,.04)", padding:"4px 12px", fontSize:10, color:T.muted, fontStyle:"italic", borderBottom:`1px solid ${T.border}` }}>
+      <div style={{ background:tool==="eraser"?"rgba(192,57,43,.06)":tool==="hi"?T.accentSoft:"rgba(13,27,42,.04)", padding:"4px 12px", fontSize:10, color:T.muted, fontStyle:"italic", borderBottom:`1px solid ${T.border}` }}>
         {penLabel} · {tool==="pen"?"Pressure-sensitive ink":tool==="hi"?"Highlighter (transparent)":"Eraser"} · Draw below
       </div>
       <canvas ref={canvasRef} width={800} height={380}
@@ -207,7 +233,7 @@ function DrawingCanvas({ onSave, onClose, T }) {
       />
       <div style={{ display:"flex", gap:8, padding:"10px 12px", justifyContent:"flex-end", background:T.surface2 }}>
         <button onClick={onClose} style={{ background:"transparent", border:`1px solid ${T.border}`, borderRadius:10, padding:"8px 16px", color:T.muted, fontSize:13, cursor:"pointer", fontFamily:"inherit" }}>Discard</button>
-        <button onClick={()=>onSave(canvasRef.current.toDataURL("image/png"))} style={{ background:GOLD, border:"none", borderRadius:10, padding:"8px 18px", color:"#0D1B2A", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
+        <button onClick={()=>onSave(canvasRef.current.toDataURL("image/png"))} style={{ background:T.accent, border:"none", borderRadius:2, padding:"8px 18px", color:"#fff", fontSize:13, fontWeight:600, cursor:"pointer", fontFamily:"inherit" }}>
           <i className="ti ti-check" style={{fontSize:14,marginRight:5}} aria-hidden="true"/>Save Drawing
         </button>
       </div>
@@ -218,10 +244,10 @@ function DrawingCanvas({ onSave, onClose, T }) {
 // ─── TOP BAR ─────────────────────────────────────────────────────────────────
 function TopBar({ T, isDesktop, title, sub, right }) {
   return (
-    <div style={{ background:T.header, padding:isDesktop?"14px 22px":"11px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
+    <div style={{ background:T.chrome, borderBottom:`1px solid ${T.border}`, padding:isDesktop?"14px 24px":"11px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", flexShrink:0 }}>
       <div>
-        <div style={{ color:GOLD, fontFamily:"'Playfair Display',Georgia,serif", fontSize:isDesktop?20:17, fontWeight:600 }}>{title}</div>
-        {sub && <div style={{ color:"rgba(255,255,255,.45)", fontSize:11, marginTop:2 }}>{sub}</div>}
+        <div style={{ color:T.heading, fontFamily:SERIF_DISPLAY, fontSize:isDesktop?24:20, letterSpacing:"-.01em" }}>{title}</div>
+        {sub && <div style={{ color:T.muted, fontSize:10, marginTop:3, textTransform:"uppercase", letterSpacing:".18em", fontWeight:600 }}>{sub}</div>}
       </div>
       {right && <div style={{ display:"flex", gap:10, alignItems:"center" }}>{right}</div>}
     </div>
@@ -229,22 +255,22 @@ function TopBar({ T, isDesktop, title, sub, right }) {
 }
 
 // ─── SIDEBAR ─────────────────────────────────────────────────────────────────
-function Sidebar({ T, isDesktop, tab, setTab, theme, changeTheme }) {
+function Sidebar({ T, isDesktop, tab, setTab }) {
   return (
-    <div style={{ background:T.header, width:isDesktop?200:64, flexShrink:0, display:"flex", flexDirection:"column", alignItems:"center", paddingTop:12, borderRight:`1px solid rgba(201,168,76,.15)`, minHeight:"100%" }}>
-      <div style={{ padding:isDesktop?"14px 16px 18px":"12px 0 16px", textAlign:"center", borderBottom:"1px solid rgba(201,168,76,.15)", width:"100%", marginBottom:8 }}>
+    <div style={{ background:T.chrome, width:isDesktop?200:64, flexShrink:0, display:"flex", flexDirection:"column", alignItems:"center", paddingTop:12, borderRight:`1px solid ${T.border}`, minHeight:"100%" }}>
+      <div style={{ padding:isDesktop?"14px 16px 18px":"12px 0 16px", textAlign:"center", borderBottom:`1px solid ${T.border}`, width:"100%", marginBottom:8 }}>
         {isDesktop
-          ? <><div style={{ color:GOLD, fontFamily:"'Playfair Display',Georgia,serif", fontSize:14, fontWeight:600, lineHeight:1.3 }}>✦ The Bible<br/>Study App</div><div style={{ color:"rgba(255,255,255,.4)", fontSize:10, marginTop:4 }}>KJV · 1611</div></>
-          : <div style={{ color:GOLD, fontSize:18, fontFamily:"'Playfair Display',Georgia,serif" }}>✦</div>
+          ? <><div style={{ color:T.accent, fontFamily:SERIF_DISPLAY, fontSize:26, lineHeight:1 }}>B.</div><div style={{ color:T.muted, fontSize:9, marginTop:7, textTransform:"uppercase", letterSpacing:".22em", fontWeight:600 }}>The Bible Study App<br/>KJV · 1611</div></>
+          : <div style={{ color:T.accent, fontSize:22, fontFamily:SERIF_DISPLAY }}>B.</div>
         }
       </div>
       {NAV.map(([id,ico,lbl]) => (
-        <div key={id} onClick={() => setTab(id)} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:3, padding:isDesktop?"10px 14px":"12px 8px", width:"100%", cursor:"pointer", background:tab===id?"rgba(201,168,76,.12)":"transparent", borderRight:tab===id?`2px solid ${GOLD}`:"2px solid transparent", boxSizing:"border-box", marginBottom:2 }}>
-          <i className={`ti ${ico}`} style={{ fontSize:isDesktop?20:22, color:tab===id?GOLD:"rgba(255,255,255,.5)" }} aria-hidden="true"/>
-          {isDesktop && <span style={{ fontSize:12, color:tab===id?GOLD:"rgba(255,255,255,.45)", fontWeight:500, letterSpacing:.3 }}>{lbl}</span>}
+        <div key={id} onClick={() => setTab(id)} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4, padding:isDesktop?"11px 14px":"13px 8px", width:"100%", cursor:"pointer", background:"transparent", borderRight:tab===id?`2px solid ${T.accent}`:"2px solid transparent", boxSizing:"border-box", marginBottom:2 }}>
+          <i className={`ti ${ico}`} style={{ fontSize:isDesktop?19:21, color:tab===id?T.accent:T.muted }} aria-hidden="true"/>
+          {isDesktop && <span style={{ fontSize:9.5, color:tab===id?T.accent:T.muted, fontWeight:tab===id?700:600, letterSpacing:".18em", textTransform:"uppercase" }}>{lbl}</span>}
         </div>
       ))}
-      <div style={{ marginTop:"auto", borderTop:"1px solid rgba(201,168,76,.15)" }}/>
+      <div style={{ marginTop:"auto", borderTop:`1px solid ${T.border}` }}/>
     </div>
   );
 }
@@ -252,11 +278,11 @@ function Sidebar({ T, isDesktop, tab, setTab, theme, changeTheme }) {
 // ─── BOTTOM NAV ──────────────────────────────────────────────────────────────
 function BottomNav({ T, tab, setTab }) {
   return (
-    <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:50, background:T.header, padding:"8px 0 10px", display:"flex", borderTop:`1px solid rgba(201,168,76,.2)` }}>
+    <div style={{ position:"fixed", bottom:0, left:0, right:0, zIndex:50, background:T.chrome, padding:"10px 0 12px", display:"flex", borderTop:`1px solid ${T.border}` }}>
       {NAV.map(([id,ico,lbl]) => (
-        <div key={id} onClick={() => setTab(id)} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:2, cursor:"pointer", flex:1 }}>
-          <i className={`ti ${ico}`} style={{ fontSize:21, color:tab===id?GOLD:T.muted }} aria-hidden="true"/>
-          <span style={{ fontSize:9, color:tab===id?GOLD:T.muted, fontWeight:500, letterSpacing:.3, textTransform:"uppercase" }}>{lbl}</span>
+        <div key={id} onClick={() => setTab(id)} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4, cursor:"pointer", flex:1 }}>
+          <i className={`ti ${ico}`} style={{ fontSize:19, color:tab===id?T.accent:T.muted }} aria-hidden="true"/>
+          <span style={{ fontSize:9, color:tab===id?T.accent:T.muted, fontWeight:tab===id?700:600, letterSpacing:".18em", textTransform:"uppercase" }}>{lbl}</span>
         </div>
       ))}
     </div>
@@ -265,8 +291,9 @@ function BottomNav({ T, tab, setTab }) {
 
 // ─── READER ──────────────────────────────────────────────────────────────────
 function ReaderContent({ T, isDesktop, isTablet, isMobile, bookName, chapter, maxCh, verses, loading, hl, daily, fs, setSBP, setSCP, toggleHL, setNR, setTab, setSE, setAIn, setCh }) {
-  const pill = () => ({ background:"rgba(201,168,76,.15)", border:"1px solid rgba(201,168,76,.3)", borderRadius:20, padding:isMobile?"5px 11px":"6px 14px", display:"flex", alignItems:"center", gap:5, cursor:"pointer" });
-  const pTxt = { color:GOLD, fontSize:isMobile?13:14, fontWeight:500 };
+  // Editorial picker chips: bordered ink, square, uppercase (design's "JOHN ▾ / CH. 3 ▾")
+  const pill = () => ({ background:"transparent", border:`1.5px solid ${T.heading}`, borderRadius:0, padding:isMobile?"5px 10px":"7px 14px", display:"flex", alignItems:"center", gap:6, cursor:"pointer" });
+  const pTxt = { color:T.heading, fontSize:isMobile?11:12, fontWeight:600, letterSpacing:".06em", textTransform:"uppercase" };
   const btn  = (v="def") => mkBtn(T, isTablet, isDesktop, v);
   return (
     <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
@@ -276,36 +303,36 @@ function ReaderContent({ T, isDesktop, isTablet, isMobile, bookName, chapter, ma
           <i className="ti ti-share"    style={{ color:"rgba(255,255,255,.7)", fontSize:isDesktop?22:20, cursor:"pointer" }} aria-hidden="true"/>
         </>}
       />
-      <div style={{ background:"#1A2D42", padding:"8px 14px", display:"flex", gap:8, alignItems:"center", flexShrink:0 }}>
+      <div style={{ background:T.chrome, borderBottom:`1px solid ${T.border}`, padding:"9px 16px", display:"flex", gap:10, alignItems:"center", flexShrink:0 }}>
         <div style={pill()} onClick={() => setSBP(true)}>
-          <i className="ti ti-book-2" style={{ color:GOLD, fontSize:13 }} aria-hidden="true"/>
           <span style={pTxt}>{bookName}</span>
-          <i className="ti ti-chevron-down" style={{ color:GOLD, fontSize:12 }} aria-hidden="true"/>
+          <i className="ti ti-chevron-down" style={{ color:T.heading, fontSize:12 }} aria-hidden="true"/>
         </div>
         <div style={pill()} onClick={() => setSCP(true)}>
           <span style={pTxt}>Ch. {chapter}</span>
-          <i className="ti ti-chevron-down" style={{ color:GOLD, fontSize:12 }} aria-hidden="true"/>
+          <i className="ti ti-chevron-down" style={{ color:T.heading, fontSize:12 }} aria-hidden="true"/>
         </div>
-        <div style={{ ...pill(), marginLeft:"auto", cursor:"default" }}>
-          <span style={{ ...pTxt, fontSize:12 }}>KJV</span>
+        <div style={{ ...pill(), border:"none", background:T.header, marginLeft:"auto", cursor:"default" }}>
+          <span style={{ ...pTxt, color:T.headerText }}>KJV</span>
         </div>
       </div>
       <div style={{ flex:1, overflowY:"auto", padding:0 }}>
-        <div style={{ margin:isDesktop?"16px 20px":"12px 14px", background:T.header, borderRadius:14, padding:isDesktop?"16px 20px":"13px 16px", border:"1px solid rgba(201,168,76,.3)" }}>
-          <div style={{ fontSize:9, textTransform:"uppercase", letterSpacing:1, color:GOLD, marginBottom:4 }}>✦ Verse of the Day</div>
-          <div style={{ fontFamily:"'Playfair Display',Georgia,serif", fontSize:isDesktop?15:13, color:"#F0EDE6", lineHeight:1.8, fontStyle:"italic" }}>"{daily.text}"</div>
-          <div style={{ fontSize:10, color:GOLD, marginTop:6 }}>{daily.ref}</div>
+        <div style={{ margin:isDesktop?"20px 24px 0":"14px 16px 0", padding:isDesktop?"16px 0":"13px 0", borderTop:`1px solid ${T.border}`, borderBottom:`1px solid ${T.border}` }}>
+          <div style={{ ...EYEBROW, letterSpacing:".24em", color:T.muted, marginBottom:9, fontWeight:600 }}>Verse of the Day</div>
+          <div style={{ fontFamily:SERIF_DISPLAY, fontSize:isDesktop?21:17, color:T.accent, lineHeight:1.35, fontStyle:"italic" }}>“{daily.text}”</div>
+          <div style={{ fontSize:11, color:T.heading, fontWeight:600, marginTop:9, letterSpacing:".08em", textTransform:"uppercase" }}>{daily.ref}</div>
         </div>
-        <div style={{ padding:isDesktop?"16px 22px 10px":"14px 18px 8px", borderBottom:`1px solid ${T.border}` }}>
-          <div style={{ fontFamily:"'Playfair Display',Georgia,serif", fontSize:isDesktop?26:22, color:T.text, fontWeight:600 }}>{bookName} {chapter}</div>
-          <div style={{ fontSize:11, color:T.muted, marginTop:3 }}>King James Version · tap a verse to highlight</div>
+        <div style={{ padding:isDesktop?"26px 24px 18px":"20px 16px 14px", borderBottom:`1px solid ${T.border}` }}>
+          <div style={{ ...EYEBROW, color:T.accent, marginBottom:12 }}>Chapter {chapterWord(chapter)}</div>
+          <div style={{ fontFamily:SERIF_DISPLAY, fontSize:isDesktop?84:52, lineHeight:.9, letterSpacing:"-.02em", color:T.heading }}>{bookName} {chapter}</div>
+          <div style={{ fontSize:11, color:T.muted, marginTop:12, lineHeight:1.6 }}>King James Version · tap any verse to highlight or note it</div>
         </div>
         {loading && <div style={{ padding:32, textAlign:"center", color:T.muted, fontStyle:"italic" }}>Loading scripture…</div>}
         {verses.map(v => (
           <div key={v.verse} onClick={() => toggleHL(v.verse)}
-            style={{ padding:isDesktop?"11px 22px":"10px 18px", cursor:"pointer", background:hl[v.verse]?"rgba(201,168,76,.1)":"transparent", borderLeft:hl[v.verse]?`3px solid ${GOLD}`:"3px solid transparent", transition:"background .15s" }}>
-            <span style={{ fontSize:isDesktop?11:10, fontWeight:700, color:GOLD, marginRight:6, verticalAlign:"super" }}>{v.verse}</span>
-            <span style={{ fontFamily:"'Playfair Display',Georgia,serif", fontSize:fs, lineHeight:1.9, color:T.text }}>{v.text?.trim()}</span>
+            style={{ padding:isDesktop?"9px 24px":"8px 16px", maxWidth:648, cursor:"pointer", background:hl[v.verse]?T.hl:"transparent", transition:"background .15s" }}>
+            <span style={{ fontFamily:SANS, fontSize:10, fontWeight:700, color:T.accent, marginRight:8, verticalAlign:"top" }}>{String(v.verse).padStart(2,"0")}</span>
+            <span style={{ fontFamily:SERIF_BODY, fontSize:fs, lineHeight:1.8, color:T.scripture }}>{v.text?.trim()}</span>
             {hl[v.verse] && (
               <div style={{ display:"flex", gap:6, marginTop:9, flexWrap:"wrap" }}>
                 {[["Highlight","ti-highlight"],["Add Note","ti-notebook"],["Ask AI","ti-sparkles"],["Copy","ti-copy"],["Share","ti-share"]].map(([lbl,ico]) => (
@@ -314,7 +341,7 @@ function ReaderContent({ T, isDesktop, isTablet, isMobile, bookName, chapter, ma
                     if (lbl==="Add Note") { setNR(`${bookName} ${chapter}:${v.verse}`); setTab("notes"); setSE(true); }
                     if (lbl==="Ask AI")   { setAIn(`Please explain ${bookName} ${chapter}:${v.verse} — "${v.text?.slice(0,60)}…" with historical and theological context from the KJV.`); setTab("ai"); }
                     if (lbl==="Copy")     { navigator.clipboard.writeText(`"${v.text?.trim()}" — ${bookName} ${chapter}:${v.verse} (KJV)`); }
-                  }} style={{ background:T.header, border:"none", borderRadius:12, padding:"5px 11px", color:"#F0EDE6", fontSize:11, cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:4, minHeight:32 }}>
+                  }} style={{ background:T.header, border:"none", borderRadius:2, padding:"5px 11px", color:T.headerText, fontSize:10.5, fontWeight:600, letterSpacing:".04em", cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:4, minHeight:32 }}>
                     <i className={`ti ${ico}`} style={{fontSize:12}} aria-hidden="true"/>{lbl}
                   </button>
                 ))}
@@ -351,19 +378,19 @@ function NotesContent({ T, isDesktop, isMobile, notes, setSE, deleteNote, openEd
                 <div style={{ fontSize:isDesktop?15:14, fontWeight:500, color:T.text, flex:1, marginRight:8 }}>{n.title}</div>
                 <div style={{ fontSize:10, color:T.muted, flexShrink:0 }}>{n.date}</div>
               </div>
-              {n.ref && <div style={{ fontSize:11, color:GOLD, fontWeight:600, marginBottom:6, fontFamily:"'Playfair Display',Georgia,serif", fontStyle:"italic" }}>{n.ref}</div>}
+              {n.ref && <div style={{ fontSize:13, color:T.accent, marginBottom:6, fontFamily:SERIF_DISPLAY, fontStyle:"italic" }}>{n.ref}</div>}
               <div style={{ fontSize:13, color:T.muted, lineHeight:1.7 }}>{n.text}</div>
               {n.drawing && <img src={n.drawing} alt="Handwritten note" style={{ width:"100%", borderRadius:8, marginTop:8, border:`1px solid ${T.border}` }}/>}
               {n.tags?.length > 0 && (
                 <div style={{ display:"flex", gap:5, marginTop:9, flexWrap:"wrap" }}>
-                  {n.tags.map(t => <span key={t} style={{ background:"rgba(201,168,76,.1)", border:"1px solid rgba(201,168,76,.3)", borderRadius:8, padding:"2px 8px", fontSize:10, color:GOLD }}>{t}</span>)}
+                  {n.tags.map(t => <span key={t} style={{ background:T.accentSoft, border:`1px solid ${T.accentBorder}`, borderRadius:2, padding:"2px 8px", fontSize:9.5, fontWeight:600, letterSpacing:".06em", textTransform:"uppercase", color:T.accent }}>{t}</span>)}
                 </div>
               )}
               <div style={{ display:"flex", gap:6, marginTop:9, flexWrap:"wrap", alignItems:"center" }}>
                 {n.hasAudio && <div style={{ background:T.surface2, borderRadius:8, padding:"3px 9px", fontSize:10, color:T.muted, display:"flex", alignItems:"center", gap:4 }}><i className="ti ti-microphone" style={{fontSize:12}} aria-hidden="true"/>Audio</div>}
                 {n.hasImg   && <div style={{ background:T.surface2, borderRadius:8, padding:"3px 9px", fontSize:10, color:T.muted, display:"flex", alignItems:"center", gap:4 }}><i className="ti ti-photo" style={{fontSize:12}} aria-hidden="true"/>Photo</div>}
-                {n.drawing  && <div style={{ background:"rgba(201,168,76,.1)", border:"1px solid rgba(201,168,76,.2)", borderRadius:8, padding:"3px 9px", fontSize:10, color:GOLD, display:"flex", alignItems:"center", gap:4 }}><i className="ti ti-pencil" style={{fontSize:12}} aria-hidden="true"/>Drawing</div>}
-                <button onClick={e => { e.stopPropagation(); openEdit(n); }} style={{ background:"rgba(201,168,76,.1)", border:"none", borderRadius:8, padding:"4px 10px", fontSize:10, color:GOLD, cursor:"pointer", display:"flex", alignItems:"center", gap:3, minHeight:28 }}>
+                {n.drawing  && <div style={{ background:T.accentSoft, border:`1px solid ${T.accentBorder}`, borderRadius:2, padding:"3px 9px", fontSize:10, color:T.accent, display:"flex", alignItems:"center", gap:4 }}><i className="ti ti-pencil" style={{fontSize:12}} aria-hidden="true"/>Drawing</div>}
+                <button onClick={e => { e.stopPropagation(); openEdit(n); }} style={{ background:T.accentSoft, border:"none", borderRadius:2, padding:"4px 10px", fontSize:10, fontWeight:600, color:T.accent, cursor:"pointer", display:"flex", alignItems:"center", gap:3, minHeight:28 }}>
                   <i className="ti ti-pencil" style={{fontSize:12}} aria-hidden="true"/>Edit
                 </button>
                 <button onClick={e => { e.stopPropagation(); deleteNote(n.id); }} style={{ background:"rgba(192,57,43,.1)", border:"none", borderRadius:8, padding:"4px 10px", fontSize:10, color:"#C0392B", cursor:"pointer", marginLeft:"auto", display:"flex", alignItems:"center", gap:3, minHeight:28 }}>
@@ -384,15 +411,15 @@ function AIContent({ T, isDesktop, isMobile, aiMsgs, aiIn, setAIn, aiLd, chatEnd
   return (
     <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
       <TopBar T={T} isDesktop={isDesktop} title="✦ Ask the Word" sub="AI Bible study assistant · KJV only"/>
-      <div style={{ background:"#1A2D42", padding:"8px 12px", display:"flex", gap:7, overflowX:"auto", flexShrink:0 }}>
+      <div style={{ background:T.chrome, borderBottom:`1px solid ${T.border}`, padding:"9px 14px", display:"flex", gap:8, overflowX:"auto", flexShrink:0 }}>
         {["What is grace?","Pharisees explained","Explain the Trinity","Psalm 23 exposition","What is Sheol?","Romans 8 overview","The Beatitudes"].map(q => (
-          <div key={q} onClick={() => sendAI(q)} style={{ background:"rgba(201,168,76,.1)", border:"1px solid rgba(201,168,76,.25)", borderRadius:20, padding:isDesktop?"6px 14px":"5px 11px", whiteSpace:"nowrap", fontSize:isDesktop?13:11, color:GOLD, cursor:"pointer", flexShrink:0 }}>{q}</div>
+          <div key={q} onClick={() => sendAI(q)} style={{ background:"transparent", border:`1px solid ${T.accentBorder}`, borderRadius:0, padding:isDesktop?"6px 13px":"5px 10px", whiteSpace:"nowrap", fontSize:isDesktop?12:11, fontWeight:600, color:T.accent, cursor:"pointer", flexShrink:0 }}>{q}</div>
         ))}
       </div>
       <div style={{ flex:1, overflowY:"auto", padding:"12px 14px", display:"flex", flexDirection:"column", gap:10 }}>
         {aiMsgs.map((m,i) => (
-          <div key={i} style={{ alignSelf:m.role==="user"?"flex-end":"flex-start", background:m.role==="user"?"#0D1B2A":T.surface, border:m.role==="assistant"?`1px solid ${T.border}`:"none", borderRadius:m.role==="user"?"16px 16px 4px 16px":"16px 16px 16px 4px", padding:"11px 15px", maxWidth:isDesktop?"70%":"88%" }}>
-            <div style={{ fontSize:isDesktop?14:13, lineHeight:1.8, color:m.role==="user"?"#F0EDE6":T.text, whiteSpace:"pre-wrap" }}>{m.content}</div>
+          <div key={i} style={{ alignSelf:m.role==="user"?"flex-end":"flex-start", background:m.role==="user"?T.header:T.surface, border:m.role==="assistant"?`1px solid ${T.border}`:"none", borderRadius:2, padding:"11px 15px", maxWidth:isDesktop?"70%":"88%" }}>
+            <div style={{ fontSize:isDesktop?14:13, lineHeight:1.8, color:m.role==="user"?T.headerText:T.text, whiteSpace:"pre-wrap" }}>{m.content}</div>
           </div>
         ))}
         {aiLd && (
@@ -411,11 +438,11 @@ function AIContent({ T, isDesktop, isMobile, aiMsgs, aiIn, setAIn, aiLd, chatEnd
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="sentences"
-          style={{ flex:1, background:T.input, border:`1px solid ${T.border}`, borderRadius:20, padding:"9px 14px", fontSize:13, fontFamily:"inherit", color:T.text, outline:"none" }}
+          style={{ flex:1, background:T.input, border:`1px solid ${T.border}`, borderRadius:2, padding:"10px 14px", fontSize:13, fontFamily:"inherit", color:T.text, outline:"none" }}
           aria-label="AI Bible question"
         />
-        <button onClick={() => sendAI()} disabled={aiLd} style={{ background:GOLD, border:"none", borderRadius:"50%", width:40, height:40, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", opacity:aiLd?.5:1 }} aria-label="Send">
-          <i className="ti ti-arrow-up" style={{ color:"#0D1B2A", fontSize:18 }} aria-hidden="true"/>
+        <button onClick={() => sendAI()} disabled={aiLd} style={{ background:T.accent, border:"none", borderRadius:0, width:40, height:40, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", opacity:aiLd?.5:1 }} aria-label="Send">
+          <i className="ti ti-arrow-up" style={{ color:"#fff", fontSize:18 }} aria-hidden="true"/>
         </button>
       </div>
     </div>
@@ -430,8 +457,8 @@ function SearchContent({ T, isDesktop, isMobile, sRef, setSRef, doSearch, sLd, s
   return (
     <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
       <TopBar T={T} isDesktop={isDesktop} title="✦ Concordance" sub="Verses · Bible Dictionary · Word Study"/>
-      <div style={{ background:"#1A2D42", padding:"10px 14px", flexShrink:0 }}>
-        <div style={{ display:"flex", gap:7 }}>
+      <div style={{ background:T.chrome, borderBottom:`1px solid ${T.border}`, padding:"10px 14px", flexShrink:0 }}>
+        <div style={{ display:"flex", gap:8 }}>
           <input
             value={sRef}
             onChange={e => setSRef(e.target.value)}
@@ -440,11 +467,11 @@ function SearchContent({ T, isDesktop, isMobile, sRef, setSRef, doSearch, sLd, s
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="words"
-            style={{ flex:1, background:"rgba(255,255,255,.1)", border:"1px solid rgba(201,168,76,.25)", borderRadius:20, padding:"9px 15px", fontSize:13, color:"#F0EDE6", fontFamily:"inherit", outline:"none" }}
+            style={{ flex:1, background:T.input, border:`1px solid ${T.border}`, borderRadius:2, padding:"10px 14px", fontSize:13, color:T.text, fontFamily:"inherit", outline:"none" }}
             aria-label="Verse reference search"
           />
-          <button onClick={doSearch} style={{ background:GOLD, border:"none", borderRadius:"50%", width:40, height:40, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }} aria-label="Search">
-            <i className="ti ti-search" style={{ color:"#0D1B2A", fontSize:17 }} aria-hidden="true"/>
+          <button onClick={doSearch} style={{ background:T.accent, border:"none", borderRadius:0, width:40, height:40, flexShrink:0, display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }} aria-label="Search">
+            <i className="ti ti-search" style={{ color:"#fff", fontSize:17 }} aria-hidden="true"/>
           </button>
         </div>
       </div>
@@ -456,8 +483,8 @@ function SearchContent({ T, isDesktop, isMobile, sRef, setSRef, doSearch, sLd, s
             <div style={{ display:"grid", gridTemplateColumns:isDesktop?"repeat(2,1fr)":"1fr", gap:8, marginBottom:16 }}>
               {sRes.map((v,i) => (
                 <div key={i} style={{...card,margin:0}}>
-                  <div style={{ fontSize:11, fontWeight:700, color:GOLD, marginBottom:5 }}>{v.fullRef} · v.{v.verse}</div>
-                  <div style={{ fontFamily:"'Playfair Display',Georgia,serif", fontSize:isDesktop?15:14, color:T.text, lineHeight:1.85 }}>{v.text?.trim()}</div>
+                  <div style={{ fontSize:10, fontWeight:700, letterSpacing:".08em", textTransform:"uppercase", color:T.accent, marginBottom:6 }}>{v.fullRef} · v.{v.verse}</div>
+                  <div style={{ fontFamily:SERIF_BODY, fontSize:isDesktop?15.5:14.5, color:T.scripture, lineHeight:1.8 }}>{v.text?.trim()}</div>
                   <div style={{ display:"flex", gap:6, marginTop:8 }}>
                     <button onClick={() => { setNR(v.fullRef+":"+v.verse); setTab("notes"); setSE(true); }} style={{...btn(),fontSize:11,padding:"4px 10px"}}><i className="ti ti-notebook" style={{fontSize:12}} aria-hidden="true"/>Note</button>
                     <button onClick={() => { setAIn(`Explain ${v.fullRef}:${v.verse} — "${v.text?.slice(0,60)}…" with KJV context.`); setTab("ai"); }} style={{...btn(),fontSize:11,padding:"4px 10px"}}><i className="ti ti-sparkles" style={{fontSize:12}} aria-hidden="true"/>Ask AI</button>
@@ -483,13 +510,13 @@ function SearchContent({ T, isDesktop, isMobile, sRef, setSRef, doSearch, sLd, s
         <div style={{ display:"grid", gridTemplateColumns:isDesktop?"repeat(2,1fr)":"1fr", gap:8 }}>
           {dictF.map(([word,entry]) => (
             <div key={word} onClick={() => setODW(odw===word?null:word)}
-              style={{ background:T.header, borderRadius:12, padding:"13px 15px", border:"1px solid rgba(201,168,76,.2)", cursor:"pointer" }}>
+              style={{ background:T.surface, borderRadius:2, padding:"13px 15px", border:`1px solid ${T.border}`, cursor:"pointer" }}>
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center" }}>
-                <div style={{ fontFamily:"'Playfair Display',Georgia,serif", fontSize:15, color:GOLD, fontWeight:600 }}>{word}</div>
-                <i className={`ti ${odw===word?"ti-chevron-up":"ti-chevron-down"}`} style={{ color:"rgba(255,255,255,.4)", fontSize:14 }} aria-hidden="true"/>
+                <div style={{ fontFamily:SERIF_DISPLAY, fontSize:17, color:T.accent }}>{word}</div>
+                <i className={`ti ${odw===word?"ti-chevron-up":"ti-chevron-down"}`} style={{ color:T.muted, fontSize:14 }} aria-hidden="true"/>
               </div>
-              <div style={{ fontSize:10, color:"rgba(255,255,255,.4)", textTransform:"uppercase", letterSpacing:.5, marginTop:2 }}>{entry.type}</div>
-              {odw===word && <div style={{ fontSize:12, color:"rgba(255,255,255,.78)", lineHeight:1.78, marginTop:8, borderTop:"1px solid rgba(255,255,255,.1)", paddingTop:8 }}>{entry.def}</div>}
+              <div style={{ fontSize:9.5, color:T.muted, textTransform:"uppercase", letterSpacing:".1em", fontWeight:600, marginTop:3 }}>{entry.type}</div>
+              {odw===word && <div style={{ fontSize:12.5, color:T.text, lineHeight:1.78, marginTop:8, borderTop:`1px solid ${T.border}`, paddingTop:8 }}>{entry.def}</div>}
             </div>
           ))}
         </div>
@@ -516,8 +543,8 @@ function SettingsContent({ T, isDesktop, isMobile, isTablet, theme, changeTheme,
                 <div><div style={{ fontSize:14, fontWeight:500, color:T.text }}>Theme</div><div style={{ fontSize:11, color:T.muted }}>Reading background</div></div>
               </div>
               <div style={{ display:"flex", gap:8 }}>
-                {[["light","Light","#F8F4EC","#1C1C1E"],["dark","Dark","#0D1B2A","#F0EDE6"],["sepia","Sepia","#F5EFDC","#3B2D1E"]].map(([id,lbl,bg,fg]) => (
-                  <button key={id} onClick={() => changeTheme(id)} style={{ flex:1, borderRadius:10, padding:"12px 4px", fontSize:13, cursor:"pointer", border:`2px solid ${theme===id?GOLD:"rgba(0,0,0,0.15)"}`, background:bg, color:fg, fontFamily:"inherit", fontWeight:theme===id?700:400, textAlign:"center", boxShadow:theme===id?`0 0 0 1px ${GOLD}`:"none", minWidth:0 }}>{lbl}</button>
+                {[["light","Light","#faf9f6","#181614"],["dark","Dark","#141210","#e6e1d8"],["sepia","Sepia","#f5efdc","#3b2d1e"]].map(([id,lbl,bg,fg]) => (
+                  <button key={id} onClick={() => changeTheme(id)} style={{ flex:1, borderRadius:2, padding:"12px 4px", fontSize:13, cursor:"pointer", border:`2px solid ${theme===id?T.accent:T.border}`, background:bg, color:fg, fontFamily:"inherit", fontWeight:theme===id?700:400, textAlign:"center", minWidth:0 }}>{lbl}</button>
                 ))}
               </div>
             </div>
@@ -527,9 +554,9 @@ function SettingsContent({ T, isDesktop, isMobile, isTablet, theme, changeTheme,
                 <div><div style={{ fontSize:14, fontWeight:500, color:T.text }}>Font Size</div><div style={{ fontSize:11, color:T.muted }}>Currently {fs}px</div></div>
               </div>
               <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                <button onClick={decFS} style={{ width:32, height:32, background:T.header, borderRadius:8, border:"none", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }} aria-label="Decrease font size"><i className="ti ti-minus" style={{ color:"#F0EDE6", fontSize:14 }} aria-hidden="true"/></button>
+                <button onClick={decFS} style={{ width:32, height:32, background:T.header, borderRadius:2, border:"none", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }} aria-label="Decrease font size"><i className="ti ti-minus" style={{ color:T.headerText, fontSize:14 }} aria-hidden="true"/></button>
                 <span style={{ fontSize:16, color:T.text, minWidth:28, textAlign:"center", fontWeight:600 }}>{fs}</span>
-                <button onClick={incFS} style={{ width:32, height:32, background:T.header, borderRadius:8, border:"none", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }} aria-label="Increase font size"><i className="ti ti-plus" style={{ color:"#F0EDE6", fontSize:14 }} aria-hidden="true"/></button>
+                <button onClick={incFS} style={{ width:32, height:32, background:T.header, borderRadius:2, border:"none", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer" }} aria-label="Increase font size"><i className="ti ti-plus" style={{ color:T.headerText, fontSize:14 }} aria-hidden="true"/></button>
               </div>
             </div>
           </div>
@@ -556,7 +583,7 @@ function SettingsContent({ T, isDesktop, isMobile, isTablet, theme, changeTheme,
                 <div style={{ fontSize:14, fontWeight:500, color:T.text }}>King James Version</div>
                 <div style={{ fontSize:11, color:T.muted }}>KJV · 1611 Authorized Version</div>
               </div>
-              <div style={{ background:"rgba(201,168,76,.12)", border:"1px solid rgba(201,168,76,.35)", borderRadius:8, padding:"4px 10px", fontSize:11, color:GOLD, fontWeight:600 }}>Active</div>
+              <div style={{ background:T.accentSoft, border:`1px solid ${T.accentBorder}`, borderRadius:2, padding:"4px 10px", fontSize:10, letterSpacing:".08em", textTransform:"uppercase", color:T.accent, fontWeight:700 }}>Active</div>
             </div>
           </div>
         </div>
@@ -565,7 +592,7 @@ function SettingsContent({ T, isDesktop, isMobile, isTablet, theme, changeTheme,
           <div style={{...card}}>
             <div style={{ fontSize:15, fontWeight:500, color:T.text, marginBottom:4 }}>The Bible Study App</div>
             <div style={{ fontSize:13, color:T.muted, lineHeight:1.75 }}>A full-featured KJV Bible companion with AI-powered insights, concordance, Bible dictionary, rich notes with Apple Pencil drawing — fully responsive across phone, iPad, and desktop. Notes and highlights sync to Supabase across all your devices.</div>
-            <div style={{ fontSize:11, color:GOLD, marginTop:8 }}>Version 2.0 · KJV Only · Powered by Claude AI · Synced via Supabase</div>
+            <div style={{ fontSize:11, color:T.accent, marginTop:8 }}>Version 2.0 · KJV Only · Powered by Claude AI · Synced via Supabase</div>
             <div style={{ fontSize:10, color:T.muted, marginTop:4, fontFamily:"monospace" }}>Build: {__COMMIT_HASH__}</div>
           </div>
         </div>
@@ -1085,12 +1112,12 @@ export default function BibleStudyApp() {
   const fmt   = t => `${Math.floor(t/60)}:${String(t%60).padStart(2,"0")}`;
 
   const overlay = { position:"fixed", inset:0, background:"rgba(0,0,0,.6)", zIndex:20, display:"flex", flexDirection:"column", justifyContent:"flex-end" };
-  const sheet   = (big) => ({ background:T.surface, borderRadius:"20px 20px 0 0", padding:isTablet||isDesktop?22:16, maxHeight:big?"85vh":"70vh", overflowY:"auto", border:`2px solid ${GOLD}` });
+  const sheet   = (big) => ({ background:T.bg, borderRadius:0, padding:isTablet||isDesktop?22:16, maxHeight:big?"85vh":"70vh", overflowY:"auto", borderTop:`2px solid ${T.accent}` });
   const inp     = mkInp(T);
   const btn     = (v="def") => mkBtn(T, isTablet, isDesktop, v);
 
   return (
-    <div ref={rootRef} style={{ width:"100%", height:"100dvh", background:T.bg, fontFamily:"'DM Sans','Segoe UI',sans-serif", position:"relative", display:"flex", flexDirection:"column", overflow:"hidden" }}>
+    <div ref={rootRef} style={{ width:"100%", height:"100dvh", background:T.bg, fontFamily:SANS, position:"relative", display:"flex", flexDirection:"column", overflow:"hidden" }}>
 
       <div style={{ display:"flex", flex:1, minHeight:0, height:"100%" }}>
         {!isMobile && <Sidebar T={T} isDesktop={isDesktop} tab={tab} setTab={setTab} theme={theme} changeTheme={changeTheme}/>}
@@ -1109,7 +1136,7 @@ export default function BibleStudyApp() {
         <div style={overlay} onClick={() => setSBP(false)}>
           <div style={sheet(true)} onClick={e => e.stopPropagation()}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
-              <span style={{ fontSize:17, fontWeight:500, color:T.text, fontFamily:"'Playfair Display',Georgia,serif" }}>Select Book</span>
+              <span style={{ fontSize:20, color:T.heading, fontFamily:SERIF_DISPLAY }}>Select Book</span>
               <button onClick={() => setSBP(false)} style={{ background:"none", border:"none", cursor:"pointer", color:T.muted, padding:4 }}><i className="ti ti-x" style={{fontSize:20}} aria-hidden="true"/></button>
             </div>
             {[["Old Testament",BOOKS_OT],["New Testament",BOOKS_NT]].map(([label,list]) => (
@@ -1118,7 +1145,7 @@ export default function BibleStudyApp() {
                 <div style={{ display:"flex", flexWrap:"wrap", gap:6 }}>
                   {list.map(([name,chs]) => (
                     <button key={name} onClick={() => pickBook(name,chs)}
-                      style={{ background:bookName===name?GOLD:T.surface2, border:`1px solid ${bookName===name?GOLD:T.border}`, borderRadius:8, padding:isTablet||isDesktop?"7px 12px":"5px 9px", fontSize:isTablet||isDesktop?13:11, color:bookName===name?"#0D1B2A":T.text, cursor:"pointer", fontFamily:"inherit", fontWeight:bookName===name?500:400, minHeight:36 }}>
+                      style={{ background:bookName===name?T.accent:T.surface2, border:`1px solid ${bookName===name?T.accent:T.border}`, borderRadius:2, padding:isTablet||isDesktop?"7px 12px":"5px 9px", fontSize:isTablet||isDesktop?13:11, color:bookName===name?"#fff":T.text, cursor:"pointer", fontFamily:"inherit", fontWeight:bookName===name?600:400, minHeight:36 }}>
                       {name}
                     </button>
                   ))}
@@ -1140,7 +1167,7 @@ export default function BibleStudyApp() {
             <div style={{ display:"flex", flexWrap:"wrap", gap:8 }}>
               {Array.from({length:maxCh},(_,i)=>i+1).map(n => (
                 <button key={n} onClick={() => { setCh(n); setSCP(false); }}
-                  style={{ width:isTablet||isDesktop?52:46, height:isTablet||isDesktop?52:46, background:chapter===n?GOLD:T.surface2, border:`1px solid ${chapter===n?GOLD:T.border}`, borderRadius:10, fontSize:isTablet||isDesktop?15:13, fontWeight:chapter===n?600:400, color:chapter===n?"#0D1B2A":T.text, cursor:"pointer", fontFamily:"inherit" }}>
+                  style={{ width:isTablet||isDesktop?52:46, height:isTablet||isDesktop?52:46, background:chapter===n?T.accent:T.surface2, border:`1px solid ${chapter===n?T.accent:T.border}`, borderRadius:2, fontSize:isTablet||isDesktop?15:13, fontWeight:chapter===n?600:400, color:chapter===n?"#fff":T.text, cursor:"pointer", fontFamily:"inherit" }}>
                   {n}
                 </button>
               ))}
@@ -1154,7 +1181,7 @@ export default function BibleStudyApp() {
         <div style={overlay}>
           <div style={sheet(true)} onClick={e => e.stopPropagation()}>
             <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
-              <span style={{ fontSize:17, fontWeight:500, color:T.text, fontFamily:"'Playfair Display',Georgia,serif" }}>{editingNoteId ? "Edit Note" : "New Study Note"}</span>
+              <span style={{ fontSize:20, color:T.heading, fontFamily:SERIF_DISPLAY }}>{editingNoteId ? "Edit Note" : "New Study Note"}</span>
               <button onClick={() => {
                 if (mediaRecRef.current && mediaRecRef.current.state !== "inactive") mediaRecRef.current.stop();
                 clearInterval(recRef.current);
@@ -1181,7 +1208,7 @@ export default function BibleStudyApp() {
               <button onClick={() => setHI(true)} style={{...btn(), ...(hasImg && {background:"#1A7A4A"})}}>
                 <i className="ti ti-camera" aria-hidden="true"/>{hasImg?"✓ Photo":"Snap Photo"}
               </button>
-              <button onClick={() => setSC(!showCanvas)} style={{...btn(), ...(showCanvas && {background:"rgba(201,168,76,.25)", border:`1px solid ${GOLD}`})}}>
+              <button onClick={() => setSC(!showCanvas)} style={{...btn(), ...(showCanvas && {background:T.accentSoft, border:`1px solid ${T.accent}`, color:T.accent})}}>
                 <i className="ti ti-pencil" aria-hidden="true"/>{drawing?"✓ Drawing":"Draw / Pencil"}
               </button>
               <button onClick={smartSummary} style={btn()}>
@@ -1216,7 +1243,7 @@ export default function BibleStudyApp() {
               <div style={{ marginBottom:14 }}>
                 <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:1, color:T.muted, marginBottom:8 }}>Saved Recordings</div>
                 {recordings.map(rec => (
-                  <div key={rec.id} style={{ background:T.header, borderRadius:10, padding:"10px 12px", marginBottom:8, border:`1px solid ${T.border}` }}>
+                  <div key={rec.id} style={{ background:T.surface2, borderRadius:2, padding:"10px 12px", marginBottom:8, border:`1px solid ${T.border}` }}>
                     <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:6 }}>
                       <span style={{ fontSize:11, color:T.muted }}>{rec.label}{rec.duration > 0 ? ` · ${fmt(rec.duration)}` : ""}</span>
                       <button onClick={() => deleteRecording(rec.id)} style={{ background:"none", border:"none", cursor:"pointer", color:T.muted, padding:2, fontSize:13 }} aria-label="Delete recording">
