@@ -255,22 +255,21 @@ function TopBar({ T, isDesktop, title, sub, right }) {
 }
 
 // ─── SIDEBAR ─────────────────────────────────────────────────────────────────
-function Sidebar({ T, isDesktop, tab, setTab }) {
+/* Desktop-only 64px editorial rail: serif monogram, vertical-rl title,
+   icon nav at the bottom (labels via tooltip). */
+function Sidebar({ T, tab, setTab }) {
   return (
-    <div style={{ background:T.chrome, width:isDesktop?200:64, flexShrink:0, display:"flex", flexDirection:"column", alignItems:"center", paddingTop:12, borderRight:`1px solid ${T.border}`, minHeight:"100%" }}>
-      <div style={{ padding:isDesktop?"14px 16px 18px":"12px 0 16px", textAlign:"center", borderBottom:`1px solid ${T.border}`, width:"100%", marginBottom:8 }}>
-        {isDesktop
-          ? <><div style={{ color:T.accent, fontFamily:SERIF_DISPLAY, fontSize:26, lineHeight:1 }}>B.</div><div style={{ color:T.muted, fontSize:9, marginTop:7, textTransform:"uppercase", letterSpacing:".22em", fontWeight:600 }}>The Bible Study App<br/>KJV · 1611</div></>
-          : <div style={{ color:T.accent, fontSize:22, fontFamily:SERIF_DISPLAY }}>B.</div>
-        }
+    <div style={{ background:T.chrome, width:64, flexShrink:0, display:"flex", flexDirection:"column", alignItems:"center", padding:"20px 0 22px", gap:24, borderRight:`1px solid ${T.border}`, minHeight:"100%", boxSizing:"border-box" }}>
+      <div style={{ color:T.accent, fontFamily:SERIF_DISPLAY, fontSize:24, lineHeight:1 }}>B.</div>
+      <div style={{ writingMode:"vertical-rl", fontSize:9.5, letterSpacing:".28em", textTransform:"uppercase", color:T.muted, fontWeight:600, flex:1, display:"flex", alignItems:"center", whiteSpace:"nowrap", minHeight:0, overflow:"hidden" }}>
+        The Bible Study App — KJV 1611
       </div>
-      {NAV.map(([id,ico,lbl]) => (
-        <div key={id} onClick={() => setTab(id)} style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4, padding:isDesktop?"11px 14px":"13px 8px", width:"100%", cursor:"pointer", background:"transparent", borderRight:tab===id?`2px solid ${T.accent}`:"2px solid transparent", boxSizing:"border-box", marginBottom:2 }}>
-          <i className={`ti ${ico}`} style={{ fontSize:isDesktop?19:21, color:tab===id?T.accent:T.muted }} aria-hidden="true"/>
-          {isDesktop && <span style={{ fontSize:9.5, color:tab===id?T.accent:T.muted, fontWeight:tab===id?700:600, letterSpacing:".18em", textTransform:"uppercase" }}>{lbl}</span>}
-        </div>
-      ))}
-      <div style={{ marginTop:"auto", borderTop:`1px solid ${T.border}` }}/>
+      <div style={{ display:"flex", flexDirection:"column", gap:17, alignItems:"center" }}>
+        {NAV.map(([id,ico,lbl]) => (
+          <i key={id} className={`ti ${ico}`} title={lbl} onClick={() => setTab(id)}
+            style={{ fontSize:18, color:tab===id?T.accent:T.muted, cursor:"pointer" }} aria-label={lbl}/>
+        ))}
+      </div>
     </div>
   );
 }
@@ -295,67 +294,139 @@ function ReaderContent({ T, isDesktop, isTablet, isMobile, bookName, chapter, ma
   const pill = () => ({ background:"transparent", border:`1.5px solid ${T.heading}`, borderRadius:0, padding:isMobile?"5px 10px":"7px 14px", display:"flex", alignItems:"center", gap:6, cursor:"pointer" });
   const pTxt = { color:T.heading, fontSize:isMobile?11:12, fontWeight:600, letterSpacing:".06em", textTransform:"uppercase" };
   const btn  = (v="def") => mkBtn(T, isTablet, isDesktop, v);
-  return (
+  // Display size adapts to long book names (e.g. "1 Thessalonians")
+  const bigSize = (base) => bookName.length > 12 ? base*.44 : bookName.length > 8 ? base*.6 : base;
+
+  const chips = (
+    <div style={{ display:"flex", gap:10, alignItems:"center", flexWrap:"wrap" }}>
+      <div style={pill()} onClick={() => setSBP(true)}>
+        <span style={pTxt}>{bookName}</span>
+        <i className="ti ti-chevron-down" style={{ color:T.heading, fontSize:12 }} aria-hidden="true"/>
+      </div>
+      <div style={pill()} onClick={() => setSCP(true)}>
+        <span style={pTxt}>Ch. {chapter}</span>
+        <i className="ti ti-chevron-down" style={{ color:T.heading, fontSize:12 }} aria-hidden="true"/>
+      </div>
+      <div style={{ ...pill(), border:"none", background:T.header, cursor:"default" }}>
+        <span style={{ ...pTxt, color:T.headerText }}>KJV</span>
+      </div>
+      {/* Unwired placeholders — kept for a future bookmark/share feature */}
+      <i className="ti ti-bookmark" title="Bookmarks — coming soon" style={{ color:T.muted, fontSize:18, cursor:"pointer", marginLeft:2 }} aria-hidden="true"/>
+      <i className="ti ti-share"    title="Share — coming soon"     style={{ color:T.muted, fontSize:18, cursor:"pointer" }} aria-hidden="true"/>
+    </div>
+  );
+
+  const header = (
+    <div style={{ background:T.chrome, borderBottom:`1px solid ${T.border}`, padding:isDesktop?"14px 32px":"10px 16px", display:"flex", alignItems:"center", justifyContent:"space-between", gap:12, flexWrap:"wrap", flexShrink:0 }}>
+      {isDesktop ? (
+        <div style={{ display:"flex", gap:26 }}>
+          {NAV.map(([id,,lbl]) => (
+            <span key={id} onClick={() => id!=="read" && setTab(id)}
+              style={{ fontSize:11, letterSpacing:".2em", textTransform:"uppercase", fontWeight:id==="read"?700:600, color:id==="read"?T.accent:T.muted, cursor:id==="read"?"default":"pointer", borderBottom:`2px solid ${id==="read"?T.accent:"transparent"}`, paddingBottom:3 }}>
+              {lbl}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <div style={{ display:"flex", alignItems:"center", gap:12 }}>
+          <span style={{ fontFamily:SERIF_DISPLAY, fontSize:22, color:T.accent, lineHeight:1 }}>B.</span>
+          {!isMobile && <span style={{ fontSize:9.5, letterSpacing:".24em", textTransform:"uppercase", color:T.muted, fontWeight:600 }}>The Bible Study App — KJV 1611</span>}
+        </div>
+      )}
+      {chips}
+    </div>
+  );
+
+  const votd = (bordered) => (
+    <div style={bordered ? { borderTop:`1px solid ${T.border}`, paddingTop:16 } : undefined}>
+      <div style={{ ...EYEBROW, letterSpacing:".24em", color:T.muted, marginBottom:9, fontWeight:600 }}>Verse of the Day</div>
+      <div style={{ fontFamily:SERIF_DISPLAY, fontSize:isDesktop?21:isTablet?18:17, color:T.accent, lineHeight:1.35, fontStyle:"italic" }}>“{daily.text}”</div>
+      <div style={{ fontSize:11, color:T.heading, fontWeight:600, marginTop:9, letterSpacing:".08em", textTransform:"uppercase" }}>{daily.ref}</div>
+    </div>
+  );
+
+  const versesJsx = (
+    <>
+      {loading && <div style={{ padding:"32px 0", textAlign:"center", color:T.muted, fontStyle:"italic" }}>Loading scripture…</div>}
+      {verses.map(v => (
+        <div key={v.verse} onClick={() => toggleHL(v.verse)}
+          style={{ margin:`0 0 ${isMobile?14:18}px`, cursor:"pointer", background:hl[v.verse]?T.hl:"transparent", boxShadow:hl[v.verse]?`0 0 0 6px ${T.hl}`:"none", transition:"background .15s" }}>
+          <span style={{ fontFamily:SANS, fontSize:10, fontWeight:700, color:T.accent, marginRight:8, verticalAlign:"top" }}>{String(v.verse).padStart(2,"0")}</span>
+          <span style={{ fontFamily:SERIF_BODY, fontSize:fs, lineHeight:1.8, color:T.scripture }}>{v.text?.trim()}</span>
+          {hl[v.verse] && (
+            <div style={{ display:"flex", gap:6, marginTop:9, flexWrap:"wrap" }}>
+              {[["Highlight","ti-highlight"],["Add Note","ti-notebook"],["Ask AI","ti-sparkles"],["Copy","ti-copy"],["Share","ti-share"]].map(([lbl,ico]) => (
+                <button key={lbl} onClick={e => {
+                  e.stopPropagation();
+                  if (lbl==="Add Note") { setNR(`${bookName} ${chapter}:${v.verse}`); setTab("notes"); setSE(true); }
+                  if (lbl==="Ask AI")   { setAIn(`Please explain ${bookName} ${chapter}:${v.verse} — "${v.text?.slice(0,60)}…" with historical and theological context from the KJV.`); setTab("ai"); }
+                  if (lbl==="Copy")     { navigator.clipboard.writeText(`"${v.text?.trim()}" — ${bookName} ${chapter}:${v.verse} (KJV)`); }
+                }} style={{ background:T.header, border:"none", borderRadius:2, padding:"5px 11px", color:T.headerText, fontSize:10.5, fontWeight:600, letterSpacing:".04em", cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:4, minHeight:32 }}>
+                  <i className={`ti ${ico}`} style={{fontSize:12}} aria-hidden="true"/>{lbl}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      ))}
+      {verses.length > 0 && (
+        <div style={{ display:"flex", justifyContent:"space-between", padding:"14px 0", gap:8, borderTop:`1px solid ${T.border}`, marginTop:6 }}>
+          <button onClick={() => chapter>1 && setCh(c => c-1)} disabled={chapter<=1} style={{ ...btn(), opacity:chapter<=1?.35:1 }}><i className="ti ti-arrow-left" aria-hidden="true"/>Previous</button>
+          <button onClick={() => chapter<maxCh && setCh(c => c+1)} disabled={chapter>=maxCh} style={{ ...btn(), opacity:chapter>=maxCh?.35:1 }}>Next<i className="ti ti-arrow-right" aria-hidden="true"/></button>
+        </div>
+      )}
+      <div style={{height:24}}/>
+    </>
+  );
+
+  /* ── Desktop: fixed chapter panel + scrolling scripture column ── */
+  if (isDesktop) return (
     <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
-      <TopBar T={T} isDesktop={isDesktop} title="The Bible Study App" sub="King James Version · 1611"
-        right={<>
-          <i className="ti ti-bookmark" style={{ color:"rgba(255,255,255,.7)", fontSize:isDesktop?22:20, cursor:"pointer" }} aria-hidden="true"/>
-          <i className="ti ti-share"    style={{ color:"rgba(255,255,255,.7)", fontSize:isDesktop?22:20, cursor:"pointer" }} aria-hidden="true"/>
-        </>}
-      />
-      <div style={{ background:T.chrome, borderBottom:`1px solid ${T.border}`, padding:"9px 16px", display:"flex", gap:10, alignItems:"center", flexShrink:0 }}>
-        <div style={pill()} onClick={() => setSBP(true)}>
-          <span style={pTxt}>{bookName}</span>
-          <i className="ti ti-chevron-down" style={{ color:T.heading, fontSize:12 }} aria-hidden="true"/>
+      {header}
+      <div style={{ flex:1, display:"flex", minHeight:0 }}>
+        <div style={{ width:320, flexShrink:0, borderRight:`1px solid ${T.border}`, overflowY:"auto", padding:"36px 24px 28px 32px", boxSizing:"border-box" }}>
+          <div style={{ ...EYEBROW, color:T.accent, marginBottom:14 }}>Chapter {chapterWord(chapter)}</div>
+          <div style={{ fontFamily:SERIF_DISPLAY, fontSize:bigSize(104), lineHeight:.88, letterSpacing:"-.02em", color:T.heading }}>{bookName}<br/>{chapter}</div>
+          <div style={{ marginTop:26 }}>{votd(true)}</div>
+          <div style={{ marginTop:18, fontSize:11, lineHeight:1.6, color:T.muted, borderTop:`1px solid ${T.border}`, paddingTop:14 }}>
+            Margin · tap any verse to highlight, note it, or ask the AI about it.
+          </div>
         </div>
-        <div style={pill()} onClick={() => setSCP(true)}>
-          <span style={pTxt}>Ch. {chapter}</span>
-          <i className="ti ti-chevron-down" style={{ color:T.heading, fontSize:12 }} aria-hidden="true"/>
-        </div>
-        <div style={{ ...pill(), border:"none", background:T.header, marginLeft:"auto", cursor:"default" }}>
-          <span style={{ ...pTxt, color:T.headerText }}>KJV</span>
+        <div style={{ flex:1, minWidth:0, position:"relative", display:"flex", flexDirection:"column", minHeight:0 }}>
+          <div style={{ flex:1, overflowY:"auto", padding:"36px 48px 0" }}>
+            <div style={{ maxWidth:600 }}>{versesJsx}</div>
+          </div>
+          <div style={{ position:"absolute", left:0, right:0, bottom:0, height:70, background:`linear-gradient(transparent, ${T.bg})`, pointerEvents:"none" }}/>
         </div>
       </div>
-      <div style={{ flex:1, overflowY:"auto", padding:0 }}>
-        <div style={{ margin:isDesktop?"20px 24px 0":"14px 16px 0", padding:isDesktop?"16px 0":"13px 0", borderTop:`1px solid ${T.border}`, borderBottom:`1px solid ${T.border}` }}>
-          <div style={{ ...EYEBROW, letterSpacing:".24em", color:T.muted, marginBottom:9, fontWeight:600 }}>Verse of the Day</div>
-          <div style={{ fontFamily:SERIF_DISPLAY, fontSize:isDesktop?21:17, color:T.accent, lineHeight:1.35, fontStyle:"italic" }}>“{daily.text}”</div>
-          <div style={{ fontSize:11, color:T.heading, fontWeight:600, marginTop:9, letterSpacing:".08em", textTransform:"uppercase" }}>{daily.ref}</div>
-        </div>
-        <div style={{ padding:isDesktop?"26px 24px 18px":"20px 16px 14px", borderBottom:`1px solid ${T.border}` }}>
-          <div style={{ ...EYEBROW, color:T.accent, marginBottom:12 }}>Chapter {chapterWord(chapter)}</div>
-          <div style={{ fontFamily:SERIF_DISPLAY, fontSize:isDesktop?84:52, lineHeight:.9, letterSpacing:"-.02em", color:T.heading }}>{bookName} {chapter}</div>
-          <div style={{ fontSize:11, color:T.muted, marginTop:12, lineHeight:1.6 }}>King James Version · tap any verse to highlight or note it</div>
-        </div>
-        {loading && <div style={{ padding:32, textAlign:"center", color:T.muted, fontStyle:"italic" }}>Loading scripture…</div>}
-        {verses.map(v => (
-          <div key={v.verse} onClick={() => toggleHL(v.verse)}
-            style={{ padding:isDesktop?"9px 24px":"8px 16px", maxWidth:648, cursor:"pointer", background:hl[v.verse]?T.hl:"transparent", transition:"background .15s" }}>
-            <span style={{ fontFamily:SANS, fontSize:10, fontWeight:700, color:T.accent, marginRight:8, verticalAlign:"top" }}>{String(v.verse).padStart(2,"0")}</span>
-            <span style={{ fontFamily:SERIF_BODY, fontSize:fs, lineHeight:1.8, color:T.scripture }}>{v.text?.trim()}</span>
-            {hl[v.verse] && (
-              <div style={{ display:"flex", gap:6, marginTop:9, flexWrap:"wrap" }}>
-                {[["Highlight","ti-highlight"],["Add Note","ti-notebook"],["Ask AI","ti-sparkles"],["Copy","ti-copy"],["Share","ti-share"]].map(([lbl,ico]) => (
-                  <button key={lbl} onClick={e => {
-                    e.stopPropagation();
-                    if (lbl==="Add Note") { setNR(`${bookName} ${chapter}:${v.verse}`); setTab("notes"); setSE(true); }
-                    if (lbl==="Ask AI")   { setAIn(`Please explain ${bookName} ${chapter}:${v.verse} — "${v.text?.slice(0,60)}…" with historical and theological context from the KJV.`); setTab("ai"); }
-                    if (lbl==="Copy")     { navigator.clipboard.writeText(`"${v.text?.trim()}" — ${bookName} ${chapter}:${v.verse} (KJV)`); }
-                  }} style={{ background:T.header, border:"none", borderRadius:2, padding:"5px 11px", color:T.headerText, fontSize:10.5, fontWeight:600, letterSpacing:".04em", cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:4, minHeight:32 }}>
-                    <i className={`ti ${ico}`} style={{fontSize:12}} aria-hidden="true"/>{lbl}
-                  </button>
-                ))}
+    </div>
+  );
+
+  /* ── Tablet / mobile: stacked (chapter header, VOTD, scripture) ── */
+  return (
+    <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
+      {header}
+      <div style={{ flex:1, overflowY:"auto" }}>
+        {isTablet ? (
+          <div style={{ padding:"34px 40px 0" }}>
+            <div style={{ display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:24, borderBottom:`1px solid ${T.border}`, paddingBottom:26 }}>
+              <div>
+                <div style={{ ...EYEBROW, color:T.accent, marginBottom:12 }}>Chapter {chapterWord(chapter)}</div>
+                <div style={{ fontFamily:SERIF_DISPLAY, fontSize:bigSize(92), lineHeight:.88, letterSpacing:"-.02em", color:T.heading }}>{bookName} {chapter}</div>
               </div>
-            )}
+              <div style={{ width:300, flexShrink:0, paddingBottom:4 }}>{votd(false)}</div>
+            </div>
           </div>
-        ))}
-        {verses.length > 0 && (
-          <div style={{ display:"flex", justifyContent:"space-between", padding:"12px 18px", gap:8, borderTop:`1px solid ${T.border}` }}>
-            <button onClick={() => chapter>1 && setCh(c => c-1)} disabled={chapter<=1} style={{ ...btn(), opacity:chapter<=1?.35:1 }}><i className="ti ti-arrow-left" aria-hidden="true"/>Previous</button>
-            <button onClick={() => chapter<maxCh && setCh(c => c+1)} disabled={chapter>=maxCh} style={{ ...btn(), opacity:chapter>=maxCh?.35:1 }}>Next<i className="ti ti-arrow-right" aria-hidden="true"/></button>
+        ) : (
+          <div style={{ padding:"20px 16px 0" }}>
+            <div style={{ ...EYEBROW, color:T.accent, marginBottom:10 }}>Chapter {chapterWord(chapter)}</div>
+            <div style={{ fontFamily:SERIF_DISPLAY, fontSize:bigSize(52), lineHeight:.92, letterSpacing:"-.02em", color:T.heading }}>{bookName} {chapter}</div>
+            <div style={{ margin:"16px 0 0", paddingBottom:14, borderBottom:`1px solid ${T.border}` }}>{votd(true)}</div>
           </div>
         )}
-        <div style={{height:12}}/>
+        <div style={{ padding:isTablet?"28px 40px 0":"18px 16px 0" }}>
+          {versesJsx}
+        </div>
       </div>
     </div>
   );
@@ -1120,14 +1191,14 @@ export default function BibleStudyApp() {
     <div ref={rootRef} style={{ width:"100%", height:"100dvh", background:T.bg, fontFamily:SANS, position:"relative", display:"flex", flexDirection:"column", overflow:"hidden" }}>
 
       <div style={{ display:"flex", flex:1, minHeight:0, height:"100%" }}>
-        {!isMobile && <Sidebar T={T} isDesktop={isDesktop} tab={tab} setTab={setTab} theme={theme} changeTheme={changeTheme}/>}
-        <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0, overflow:"hidden", paddingBottom:isMobile?60:0 }}>
+        {isDesktop && <Sidebar T={T} tab={tab} setTab={setTab}/>}
+        <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0, overflow:"hidden", paddingBottom:!isDesktop?64:0 }}>
           {tab==="read"     && <ReaderContent T={T} isDesktop={isDesktop} isTablet={isTablet} isMobile={isMobile} bookName={bookName} chapter={chapter} maxCh={maxCh} verses={verses} loading={loading} hl={hl} daily={daily} fs={fs} setSBP={setSBP} setSCP={setSCP} toggleHL={toggleHL} setNR={setNR} setTab={setTab} setSE={setSE} setAIn={setAIn} setCh={setCh}/>}
           {tab==="notes"    && <NotesContent T={T} isDesktop={isDesktop} isMobile={isMobile} notes={notes} setSE={openNewNote} deleteNote={deleteNote} openEdit={openEdit}/>}
           {tab==="ai"       && <AIContent T={T} isDesktop={isDesktop} isMobile={isMobile} aiMsgs={aiMsgs} aiIn={aiIn} setAIn={setAIn} aiLd={aiLd} chatEnd={chatEnd} sendAI={sendAI}/>}
           {tab==="search"   && <SearchContent T={T} isDesktop={isDesktop} isMobile={isMobile} sRef={sRef} setSRef={setSRef} doSearch={doSearch} sLd={sLd} sRes={sRes} sRef2={sRef2} dQ={dQ} setDQ={setDQ} odw={odw} setODW={setODW} setNR={setNR} setTab={setTab} setSE={setSE} setAIn={setAIn} dictF={dictF}/>}
           {tab==="settings" && <SettingsContent T={T} isDesktop={isDesktop} isMobile={isMobile} isTablet={isTablet} theme={theme} changeTheme={changeTheme} fs={fs} incFS={incFS} decFS={decFS} apiKey={apiKey} handleApiKey={handleApiKey}/>}
-          {isMobile && <BottomNav T={T} tab={tab} setTab={setTab}/>}
+          {!isDesktop && <BottomNav T={T} tab={tab} setTab={setTab}/>}
         </div>
       </div>
 
