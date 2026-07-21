@@ -796,6 +796,7 @@ export default function BibleStudyApp() {
   const [aiIn, setAIn]  = useState("");
   const [aiLd, setAL]   = useState(false);
   const chatEnd = useRef(null);
+  const fetchIdRef = useRef(0); // guards against out-of-order chapter/translation fetches
 
   const [sRef, setSRef] = useState("");
   const [sRes, setSRes] = useState([]);
@@ -847,6 +848,7 @@ export default function BibleStudyApp() {
   function handleApiKey(val) { setApiKey(val); localStorage.setItem("bsa_api_key", val); }
 
   async function fetchCh() {
+    const id = ++fetchIdRef.current; // take a ticket; only the latest fetch may apply state
     setLd(true); setVs([]); setHL({});
     const [verseResult, hlResult] = await Promise.all([
       fetch(`https://bible-api.com/${bookKey(bookName)}+${chapter}?translation=${translation.toLowerCase()}`)
@@ -854,6 +856,7 @@ export default function BibleStudyApp() {
         .catch(() => ({ verses: [{ verse:1, text:"Network error — please check your internet connection." }] })),
       supabase.from("highlights").select("*").eq("book", bookName).eq("chapter", chapter),
     ]);
+    if (id !== fetchIdRef.current) return; // a newer fetch superseded this one — discard stale response
     setVs(verseResult.verses || [{ verse:1, text:"Unable to load chapter. Please check your connection." }]);
     setLd(false);
     if (hlResult.data) {
