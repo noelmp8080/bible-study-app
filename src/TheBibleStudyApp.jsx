@@ -23,6 +23,13 @@ const BOOKS_NT = [
 ];
 const NAV = [["read","ti-book-2","Read"],["notes","ti-notebook","Notes"],["ai","ti-sparkles","Ask AI"],["search","ti-search","Search"],["settings","ti-settings","Prefs"]];
 
+/* Highlights and notes are keyed by (book, chapter, verse) reference only,
+   so they are shared across translations by design. */
+const TRANSLATIONS = {
+  KJV: { label:"King James Version",       era:"1611" },
+  ASV: { label:"American Standard Version", era:"1901" },
+};
+
 const DICT = {
   "Agape":         { type:"Greek: ἀγάπη",                    def:"Unconditional, self-sacrificing love — the highest form in the NT. Distinct from phileo (brotherly) and eros (romantic). The word used in John 3:16 and 1 Corinthians 13." },
   "Adonai":        { type:"Hebrew: אֲדֹנָי (ʾĂdōnāy)",        def:"Lord, Master, Sovereign. A title of supreme authority used for God, often substituted for the divine name YHWH when reading aloud. Reflects God's absolute lordship over all creation (Isa. 6:1; Ps. 110:1)." },
@@ -257,12 +264,12 @@ function TopBar({ T, isDesktop, title, sub, right }) {
 // ─── SIDEBAR ─────────────────────────────────────────────────────────────────
 /* Desktop-only 64px editorial rail: serif monogram, vertical-rl title,
    icon nav at the bottom (labels via tooltip). */
-function Sidebar({ T, tab, setTab }) {
+function Sidebar({ T, tab, setTab, translation }) {
   return (
     <div style={{ background:T.chrome, width:64, flexShrink:0, display:"flex", flexDirection:"column", alignItems:"center", padding:"20px 0 22px", gap:24, borderRight:`1px solid ${T.border}`, minHeight:"100%", boxSizing:"border-box" }}>
       <div style={{ color:T.accent, fontFamily:SERIF_DISPLAY, fontSize:24, lineHeight:1 }}>B.</div>
       <div style={{ writingMode:"vertical-rl", fontSize:9.5, letterSpacing:".28em", textTransform:"uppercase", color:T.muted, fontWeight:600, flex:1, display:"flex", alignItems:"center", whiteSpace:"nowrap", minHeight:0, overflow:"hidden" }}>
-        The Bible Study App — KJV 1611
+        {`The Bible Study App — ${translation} ${TRANSLATIONS[translation].era}`}
       </div>
       <div style={{ display:"flex", flexDirection:"column", gap:17, alignItems:"center" }}>
         {NAV.map(([id,ico,lbl]) => (
@@ -289,11 +296,22 @@ function BottomNav({ T, tab, setTab }) {
 }
 
 // ─── READER ──────────────────────────────────────────────────────────────────
-function ReaderContent({ T, isDesktop, isTablet, isMobile, bookName, chapter, maxCh, verses, loading, hl, daily, fs, setSBP, setSCP, toggleHL, setNR, setTab, setSE, setAIn, setCh }) {
+function ReaderContent({ T, isDesktop, isTablet, isMobile, bookName, chapter, maxCh, verses, loading, hl, daily, fs, translation, changeTranslation, setSBP, setSCP, toggleHL, setNR, setTab, setSE, setAIn, setCh }) {
   // Editorial picker chips: bordered ink, square, uppercase (design's "JOHN ▾ / CH. 3 ▾")
   const pill = () => ({ background:"transparent", border:`1.5px solid ${T.heading}`, borderRadius:0, padding:isMobile?"5px 10px":"7px 14px", display:"flex", alignItems:"center", gap:6, cursor:"pointer" });
   const pTxt = { color:T.heading, fontSize:isMobile?11:12, fontWeight:600, letterSpacing:".06em", textTransform:"uppercase" };
   const btn  = (v="def") => mkBtn(T, isTablet, isDesktop, v);
+  const [tOpen, setTOpen] = useState(false);
+  const scrollRef   = useRef(null);
+  const savedScroll = useRef(null);
+  // Restore the scripture scroll position after a translation switch reloads
+  // the same chapter (captured synchronously in the dropdown click).
+  useEffect(() => {
+    if (!loading && verses.length && savedScroll.current != null && scrollRef.current) {
+      scrollRef.current.scrollTop = savedScroll.current;
+      savedScroll.current = null;
+    }
+  }, [loading, verses]);
   // Display size adapts to long book names (e.g. "1 Thessalonians")
   const bigSize = (base) => bookName.length > 12 ? base*.44 : bookName.length > 8 ? base*.6 : base;
 
@@ -307,8 +325,32 @@ function ReaderContent({ T, isDesktop, isTablet, isMobile, bookName, chapter, ma
         <span style={pTxt}>Ch. {chapter}</span>
         <i className="ti ti-chevron-down" style={{ color:T.heading, fontSize:12 }} aria-hidden="true"/>
       </div>
-      <div style={{ ...pill(), border:"none", background:T.header, cursor:"default" }}>
-        <span style={{ ...pTxt, color:T.headerText }}>KJV</span>
+      <div style={{ position:"relative" }}>
+        <div style={{ ...pill(), border:"none", background:T.header, cursor:"pointer" }} onClick={() => setTOpen(o => !o)}>
+          <span style={{ ...pTxt, color:T.headerText }}>{translation}</span>
+          <i className="ti ti-chevron-down" style={{ color:T.headerText, fontSize:12 }} aria-hidden="true"/>
+        </div>
+        {tOpen && (
+          <>
+            <div style={{ position:"fixed", inset:0, zIndex:210 }} onClick={() => setTOpen(false)}/>
+            <div style={{ position:"absolute", top:"calc(100% + 6px)", right:0, zIndex:220, background:T.bg, border:`1px solid ${T.border}`, borderTop:`2px solid ${T.accent}`, boxShadow:"0 12px 40px rgba(0,0,0,.25)", minWidth:200 }}>
+              {Object.entries(TRANSLATIONS).map(([id, meta]) => (
+                <div key={id}
+                  onClick={() => {
+                    setTOpen(false);
+                    if (id !== translation) {
+                      savedScroll.current = scrollRef.current?.scrollTop ?? null;
+                      changeTranslation(id);
+                    }
+                  }}
+                  style={{ padding:"10px 14px", cursor:"pointer", display:"flex", justifyContent:"space-between", alignItems:"baseline", gap:14, background:id===translation?T.accentSoft:"transparent" }}>
+                  <span style={{ fontSize:12, fontWeight:700, letterSpacing:".06em", color:id===translation?T.accent:T.heading }}>{id}</span>
+                  <span style={{ fontSize:10.5, color:T.muted, whiteSpace:"nowrap" }}>{meta.label} · {meta.era}</span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
       {/* Unwired placeholders — kept for a future bookmark/share feature */}
       <i className="ti ti-bookmark" title="Bookmarks — coming soon" style={{ color:T.muted, fontSize:18, cursor:"pointer", marginLeft:2 }} aria-hidden="true"/>
@@ -330,7 +372,7 @@ function ReaderContent({ T, isDesktop, isTablet, isMobile, bookName, chapter, ma
       ) : (
         <div style={{ display:"flex", alignItems:"center", gap:12 }}>
           <span style={{ fontFamily:SERIF_DISPLAY, fontSize:22, color:T.accent, lineHeight:1 }}>B.</span>
-          {!isMobile && <span style={{ fontSize:9.5, letterSpacing:".24em", textTransform:"uppercase", color:T.muted, fontWeight:600 }}>The Bible Study App — KJV 1611</span>}
+          {!isMobile && <span style={{ fontSize:9.5, letterSpacing:".24em", textTransform:"uppercase", color:T.muted, fontWeight:600 }}>{`The Bible Study App — ${translation} ${TRANSLATIONS[translation].era}`}</span>}
         </div>
       )}
       {chips}
@@ -359,8 +401,8 @@ function ReaderContent({ T, isDesktop, isTablet, isMobile, bookName, chapter, ma
                 <button key={lbl} onClick={e => {
                   e.stopPropagation();
                   if (lbl==="Add Note") { setNR(`${bookName} ${chapter}:${v.verse}`); setTab("notes"); setSE(true); }
-                  if (lbl==="Ask AI")   { setAIn(`Please explain ${bookName} ${chapter}:${v.verse} — "${v.text?.slice(0,60)}…" with historical and theological context from the KJV.`); setTab("ai"); }
-                  if (lbl==="Copy")     { navigator.clipboard.writeText(`"${v.text?.trim()}" — ${bookName} ${chapter}:${v.verse} (KJV)`); }
+                  if (lbl==="Ask AI")   { setAIn(`Please explain ${bookName} ${chapter}:${v.verse} — "${v.text?.slice(0,60)}…" with historical and theological context from the ${translation}.`); setTab("ai"); }
+                  if (lbl==="Copy")     { navigator.clipboard.writeText(`"${v.text?.trim()}" — ${bookName} ${chapter}:${v.verse} (${translation})`); }
                 }} style={{ background:T.header, border:"none", borderRadius:2, padding:"5px 11px", color:T.headerText, fontSize:10.5, fontWeight:600, letterSpacing:".04em", cursor:"pointer", fontFamily:"inherit", display:"flex", alignItems:"center", gap:4, minHeight:32 }}>
                   <i className={`ti ${ico}`} style={{fontSize:12}} aria-hidden="true"/>{lbl}
                 </button>
@@ -393,7 +435,7 @@ function ReaderContent({ T, isDesktop, isTablet, isMobile, bookName, chapter, ma
           </div>
         </div>
         <div style={{ flex:1, minWidth:0, position:"relative", display:"flex", flexDirection:"column", minHeight:0 }}>
-          <div style={{ flex:1, overflowY:"auto", padding:"36px 48px 0" }}>
+          <div ref={scrollRef} style={{ flex:1, overflowY:"auto", padding:"36px 48px 0" }}>
             <div style={{ maxWidth:960 }}>{versesJsx}</div>
           </div>
           <div style={{ position:"absolute", left:0, right:0, bottom:0, height:70, background:`linear-gradient(transparent, ${T.bg})`, pointerEvents:"none" }}/>
@@ -406,7 +448,7 @@ function ReaderContent({ T, isDesktop, isTablet, isMobile, bookName, chapter, ma
   return (
     <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
       {header}
-      <div style={{ flex:1, overflowY:"auto" }}>
+      <div ref={scrollRef} style={{ flex:1, overflowY:"auto" }}>
         {isTablet ? (
           <div style={{ padding:"34px 40px 0" }}>
             <div style={{ display:"flex", alignItems:"flex-end", justifyContent:"space-between", gap:24, borderBottom:`1px solid ${T.border}`, paddingBottom:26 }}>
@@ -433,11 +475,11 @@ function ReaderContent({ T, isDesktop, isTablet, isMobile, bookName, chapter, ma
 }
 
 // ─── NOTES ───────────────────────────────────────────────────────────────────
-function NotesContent({ T, isDesktop, isMobile, notes, setSE, deleteNote, openEdit }) {
+function NotesContent({ T, isDesktop, isMobile, notes, translation, setSE, deleteNote, openEdit }) {
   const card = mkCard(T, isDesktop);
   return (
     <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
-      <TopBar T={T} isDesktop={isDesktop} title="✦ My Notes" sub={`${notes.length} notes · KJV`}
+      <TopBar T={T} isDesktop={isDesktop} title="✦ My Notes" sub={`${notes.length} notes · ${translation}`}
         right={<button onClick={() => setSE(true)} style={mkBtn(T, false, isDesktop, "gold")}><i className="ti ti-plus" aria-hidden="true"/>New Note</button>}
       />
       <div style={{ flex:1, overflowY:"auto", padding:isDesktop?"14px 18px":"10px 14px" }}>
@@ -481,7 +523,7 @@ function NotesContent({ T, isDesktop, isMobile, notes, setSE, deleteNote, openEd
 function AIContent({ T, isDesktop, isMobile, aiMsgs, aiIn, setAIn, aiLd, chatEnd, sendAI }) {
   return (
     <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
-      <TopBar T={T} isDesktop={isDesktop} title="✦ Ask the Word" sub="AI Bible study assistant · KJV only"/>
+      <TopBar T={T} isDesktop={isDesktop} title="✦ Ask the Word" sub="AI Bible study assistant · KJV & ASV"/>
       <div style={{ background:T.chrome, borderBottom:`1px solid ${T.border}`, padding:"9px 14px", display:"flex", gap:8, overflowX:"auto", flexShrink:0 }}>
         {["What is grace?","Pharisees explained","Explain the Trinity","Psalm 23 exposition","What is Sheol?","Romans 8 overview","The Beatitudes"].map(q => (
           <div key={q} onClick={() => sendAI(q)} style={{ background:"transparent", border:`1px solid ${T.accentBorder}`, borderRadius:0, padding:isDesktop?"6px 13px":"5px 10px", whiteSpace:"nowrap", fontSize:isDesktop?12:11, fontWeight:600, color:T.accent, cursor:"pointer", flexShrink:0 }}>{q}</div>
@@ -521,7 +563,7 @@ function AIContent({ T, isDesktop, isMobile, aiMsgs, aiIn, setAIn, aiLd, chatEnd
 }
 
 // ─── SEARCH / CONCORDANCE ─────────────────────────────────────────────────────
-function SearchContent({ T, isDesktop, isMobile, sRef, setSRef, doSearch, sLd, sRes, sRef2, dQ, setDQ, odw, setODW, setNR, setTab, setSE, setAIn, dictF }) {
+function SearchContent({ T, isDesktop, isMobile, sRef, setSRef, doSearch, sLd, sRes, sRef2, dQ, setDQ, odw, setODW, setNR, setTab, setSE, setAIn, dictF, translation }) {
   const card = mkCard(T, isDesktop);
   const btn  = (v="def") => mkBtn(T, false, isDesktop, v);
   const inp  = mkInp(T);
@@ -558,7 +600,7 @@ function SearchContent({ T, isDesktop, isMobile, sRef, setSRef, doSearch, sLd, s
                   <div style={{ fontFamily:SERIF_BODY, fontSize:isDesktop?15.5:14.5, color:T.scripture, lineHeight:1.8 }}>{v.text?.trim()}</div>
                   <div style={{ display:"flex", gap:6, marginTop:8 }}>
                     <button onClick={() => { setNR(v.fullRef+":"+v.verse); setTab("notes"); setSE(true); }} style={{...btn(),fontSize:11,padding:"4px 10px"}}><i className="ti ti-notebook" style={{fontSize:12}} aria-hidden="true"/>Note</button>
-                    <button onClick={() => { setAIn(`Explain ${v.fullRef}:${v.verse} — "${v.text?.slice(0,60)}…" with KJV context.`); setTab("ai"); }} style={{...btn(),fontSize:11,padding:"4px 10px"}}><i className="ti ti-sparkles" style={{fontSize:12}} aria-hidden="true"/>Ask AI</button>
+                    <button onClick={() => { setAIn(`Explain ${v.fullRef}:${v.verse} — "${v.text?.slice(0,60)}…" with ${translation} context.`); setTab("ai"); }} style={{...btn(),fontSize:11,padding:"4px 10px"}}><i className="ti ti-sparkles" style={{fontSize:12}} aria-hidden="true"/>Ask AI</button>
                   </div>
                 </div>
               ))}
@@ -598,7 +640,7 @@ function SearchContent({ T, isDesktop, isMobile, sRef, setSRef, doSearch, sLd, s
 }
 
 // ─── SETTINGS ─────────────────────────────────────────────────────────────────
-function SettingsContent({ T, isDesktop, isMobile, isTablet, theme, changeTheme, fs, incFS, decFS, apiKey, handleApiKey }) {
+function SettingsContent({ T, isDesktop, isMobile, isTablet, theme, changeTheme, fs, incFS, decFS, apiKey, handleApiKey, translation }) {
   const card = mkCard(T, isDesktop);
   const inp  = mkInp(T);
   return (
@@ -651,8 +693,8 @@ function SettingsContent({ T, isDesktop, isMobile, isTablet, theme, changeTheme,
             <div style={{...card, display:"flex", alignItems:"center", gap:12}}>
               <i className="ti ti-book" style={{ fontSize:22, color:T.text }} aria-hidden="true"/>
               <div style={{ flex:1 }}>
-                <div style={{ fontSize:14, fontWeight:500, color:T.text }}>King James Version</div>
-                <div style={{ fontSize:11, color:T.muted }}>KJV · 1611 Authorized Version</div>
+                <div style={{ fontSize:14, fontWeight:500, color:T.text }}>{TRANSLATIONS[translation].label}</div>
+                <div style={{ fontSize:11, color:T.muted }}>{translation} · {TRANSLATIONS[translation].era} · switch in the Read tab</div>
               </div>
               <div style={{ background:T.accentSoft, border:`1px solid ${T.accentBorder}`, borderRadius:2, padding:"4px 10px", fontSize:10, letterSpacing:".08em", textTransform:"uppercase", color:T.accent, fontWeight:700 }}>Active</div>
             </div>
@@ -663,7 +705,7 @@ function SettingsContent({ T, isDesktop, isMobile, isTablet, theme, changeTheme,
           <div style={{...card}}>
             <div style={{ fontSize:15, fontWeight:500, color:T.text, marginBottom:4 }}>The Bible Study App</div>
             <div style={{ fontSize:13, color:T.muted, lineHeight:1.75 }}>A full-featured KJV Bible companion with AI-powered insights, concordance, Bible dictionary, rich notes with Apple Pencil drawing — fully responsive across phone, iPad, and desktop. Notes and highlights sync to Supabase across all your devices.</div>
-            <div style={{ fontSize:11, color:T.accent, marginTop:8 }}>Version 2.0 · KJV Only · Powered by Claude AI · Synced via Supabase</div>
+            <div style={{ fontSize:11, color:T.accent, marginTop:8 }}>Version 2.0 · KJV & ASV · Powered by Claude AI · Synced via Supabase</div>
             <div style={{ fontSize:10, color:T.muted, marginTop:4, fontFamily:"monospace" }}>Build: {__COMMIT_HASH__}</div>
           </div>
         </div>
@@ -709,6 +751,7 @@ export default function BibleStudyApp() {
   const [tab, setTab]     = useState("read");
   const [theme, setTheme] = useState("light");
   const [fs, setFS]       = useState(17);
+  const [translation, setTranslation] = useState("KJV");
 
   const [prefId, setPrefId] = useState(null);
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("bsa_api_key") || "");
@@ -749,7 +792,7 @@ export default function BibleStudyApp() {
   const mimeTypeRef      = useRef("");
   const recBlobUrlsRef   = useRef([]);  // blob: URLs created from saved recordings; revoked on replace/unmount
 
-  const [aiMsgs, setAI] = useState([{ role:"assistant", content:"Shalom! I'm your KJV Bible study companion. Ask me anything — theology, history, Greek & Hebrew word studies, or chapter expositions." }]);
+  const [aiMsgs, setAI] = useState([{ role:"assistant", content:"Shalom! I'm your Bible study companion. Ask me anything — theology, history, Greek & Hebrew word studies, or chapter expositions." }]);
   const [aiIn, setAIn]  = useState("");
   const [aiLd, setAL]   = useState(false);
   const chatEnd = useRef(null);
@@ -783,29 +826,30 @@ export default function BibleStudyApp() {
   }
 
   useEffect(() => { loadPrefs(); loadNotes(); }, []);
-  useEffect(() => { fetchCh(); }, [bookName, chapter]);
+  useEffect(() => { fetchCh(); }, [bookName, chapter, translation]);
   useEffect(() => { chatEnd.current?.scrollIntoView({ behavior:"smooth" }); }, [aiMsgs, aiLd]);
   // Revoke recording blob URLs when the component unmounts
   useEffect(() => () => revokeRecordingBlobURLs(), []);
 
   async function loadPrefs() {
     const { data } = await supabase.from("preferences").select("*").limit(1).maybeSingle();
-    if (data) { setTheme(data.theme || "light"); setFS(data.font_size || 17); setPrefId(data.id); }
+    if (data) { setTheme(data.theme || "light"); setFS(data.font_size || 17); setTranslation(data.translation === "ASV" ? "ASV" : "KJV"); setPrefId(data.id); }
   }
-  async function savePrefsDB(t, f) {
-    const payload = { theme: t, font_size: f, updated_at: new Date().toISOString() };
+  async function savePrefsDB(t, f, tr) {
+    const payload = { theme: t, font_size: f, translation: tr, updated_at: new Date().toISOString() };
     if (prefId) { await supabase.from("preferences").update(payload).eq("id", prefId); }
     else { const { data } = await supabase.from("preferences").insert(payload).select().single(); if (data) setPrefId(data.id); }
   }
-  function changeTheme(t) { setTheme(t); savePrefsDB(t, fs); }
-  function incFS() { const n = Math.min(28, fs + 1); setFS(n); savePrefsDB(theme, n); }
-  function decFS() { const n = Math.max(12, fs - 1); setFS(n); savePrefsDB(theme, n); }
+  function changeTheme(t) { setTheme(t); savePrefsDB(t, fs, translation); }
+  function incFS() { const n = Math.min(28, fs + 1); setFS(n); savePrefsDB(theme, n, translation); }
+  function decFS() { const n = Math.max(12, fs - 1); setFS(n); savePrefsDB(theme, n, translation); }
+  function changeTranslation(tr) { setTranslation(tr); savePrefsDB(theme, fs, tr); }
   function handleApiKey(val) { setApiKey(val); localStorage.setItem("bsa_api_key", val); }
 
   async function fetchCh() {
     setLd(true); setVs([]); setHL({});
     const [verseResult, hlResult] = await Promise.all([
-      fetch(`https://bible-api.com/${bookKey(bookName)}+${chapter}?translation=kjv`)
+      fetch(`https://bible-api.com/${bookKey(bookName)}+${chapter}?translation=${translation.toLowerCase()}`)
         .then(r => r.json())
         .catch(() => ({ verses: [{ verse:1, text:"Network error — please check your internet connection." }] })),
       supabase.from("highlights").select("*").eq("book", bookName).eq("chapter", chapter),
@@ -1141,7 +1185,7 @@ export default function BibleStudyApp() {
       const r = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type":"application/json", "x-api-key":apiKey, "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
-        body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:1000, system:"You are a deeply knowledgeable, pastoral Bible study assistant for 'The Bible Study App.' Study exclusively from the King James Version (KJV). Provide theological depth, historical context, and original Greek/Hebrew insights. Always cite specific KJV references. Be warm, reverent, and thorough. Format concisely for reading.", messages:upd.map(m => ({ role:m.role, content:m.content })) }),
+        body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:1000, system:"You are a deeply knowledgeable, pastoral Bible study assistant for 'The Bible Study App.' Study exclusively from the " + TRANSLATIONS[translation].label + " (" + translation + "). Provide theological depth, historical context, and original Greek/Hebrew insights. Always cite specific " + translation + " references. Be warm, reverent, and thorough. Format concisely for reading.", messages:upd.map(m => ({ role:m.role, content:m.content })) }),
       });
       const d = await r.json();
       const reply = d.content?.find(c => c.type==="text")?.text || "Unable to respond. Try again.";
@@ -1159,7 +1203,7 @@ export default function BibleStudyApp() {
       const r = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: { "Content-Type":"application/json", "x-api-key":apiKey, "anthropic-version":"2023-06-01", "anthropic-dangerous-direct-browser-access":"true" },
-        body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:600, system:"You are a KJV Bible study assistant. Format your response exactly as:\n\nOVERVIEW:\n[2 sentences]\n\nKEY POINTS:\n• [point 1]\n• [point 2]\n• [point 3]\n\nEXPOSITION:\n[2-3 sentences of theological insight]\n\nBe concise and KJV-focused.", messages:[{ role:"user", content:`Smart study summary for ${ref} (KJV)` }] }),
+        body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:600, system:"You are a " + translation + " Bible study assistant. Format your response exactly as:\n\nOVERVIEW:\n[2 sentences]\n\nKEY POINTS:\n• [point 1]\n• [point 2]\n• [point 3]\n\nEXPOSITION:\n[2-3 sentences of theological insight]\n\nBe concise and " + translation + "-focused.", messages:[{ role:"user", content:`Smart study summary for ${ref} (${translation})` }] }),
       });
       const d = await r.json();
       const txt = d.content?.find(c => c.type==="text")?.text || "";
@@ -1172,7 +1216,7 @@ export default function BibleStudyApp() {
   async function doSearch() {
     if (!sRef.trim()) return; setSL(true); setSRes([]); setSR2(sRef);
     try {
-      const r = await fetch(`https://bible-api.com/${sRef.trim().replace(/ /g,"+")}?translation=kjv`);
+      const r = await fetch(`https://bible-api.com/${sRef.trim().replace(/ /g,"+")}?translation=${translation.toLowerCase()}`);
       const d = await r.json();
       setSRes(d.verses ? d.verses.map(v => ({ ...v, fullRef:d.reference })) : []);
     } catch { setSRes([]); }
@@ -1196,13 +1240,13 @@ export default function BibleStudyApp() {
     <div ref={rootRef} style={{ width:"100%", height:"100dvh", background:T.bg, fontFamily:SANS, position:"relative", display:"flex", flexDirection:"column", overflow:"hidden" }}>
 
       <div style={{ display:"flex", flex:1, minHeight:0, height:"100%" }}>
-        {isDesktop && <Sidebar T={T} tab={tab} setTab={setTab}/>}
+        {isDesktop && <Sidebar T={T} tab={tab} setTab={setTab} translation={translation}/>}
         <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0, overflow:"hidden", paddingBottom:!isDesktop?64:0 }}>
-          {tab==="read"     && <ReaderContent T={T} isDesktop={isDesktop} isTablet={isTablet} isMobile={isMobile} bookName={bookName} chapter={chapter} maxCh={maxCh} verses={verses} loading={loading} hl={hl} daily={daily} fs={fs} setSBP={setSBP} setSCP={setSCP} toggleHL={toggleHL} setNR={setNR} setTab={setTab} setSE={setSE} setAIn={setAIn} setCh={setCh}/>}
-          {tab==="notes"    && <NotesContent T={T} isDesktop={isDesktop} isMobile={isMobile} notes={notes} setSE={openNewNote} deleteNote={deleteNote} openEdit={openEdit}/>}
+          {tab==="read"     && <ReaderContent T={T} isDesktop={isDesktop} isTablet={isTablet} isMobile={isMobile} bookName={bookName} chapter={chapter} maxCh={maxCh} verses={verses} loading={loading} hl={hl} daily={daily} fs={fs} translation={translation} changeTranslation={changeTranslation} setSBP={setSBP} setSCP={setSCP} toggleHL={toggleHL} setNR={setNR} setTab={setTab} setSE={setSE} setAIn={setAIn} setCh={setCh}/>}
+          {tab==="notes"    && <NotesContent T={T} isDesktop={isDesktop} isMobile={isMobile} notes={notes} translation={translation} setSE={openNewNote} deleteNote={deleteNote} openEdit={openEdit}/>}
           {tab==="ai"       && <AIContent T={T} isDesktop={isDesktop} isMobile={isMobile} aiMsgs={aiMsgs} aiIn={aiIn} setAIn={setAIn} aiLd={aiLd} chatEnd={chatEnd} sendAI={sendAI}/>}
-          {tab==="search"   && <SearchContent T={T} isDesktop={isDesktop} isMobile={isMobile} sRef={sRef} setSRef={setSRef} doSearch={doSearch} sLd={sLd} sRes={sRes} sRef2={sRef2} dQ={dQ} setDQ={setDQ} odw={odw} setODW={setODW} setNR={setNR} setTab={setTab} setSE={setSE} setAIn={setAIn} dictF={dictF}/>}
-          {tab==="settings" && <SettingsContent T={T} isDesktop={isDesktop} isMobile={isMobile} isTablet={isTablet} theme={theme} changeTheme={changeTheme} fs={fs} incFS={incFS} decFS={decFS} apiKey={apiKey} handleApiKey={handleApiKey}/>}
+          {tab==="search"   && <SearchContent T={T} isDesktop={isDesktop} isMobile={isMobile} sRef={sRef} setSRef={setSRef} doSearch={doSearch} sLd={sLd} sRes={sRes} sRef2={sRef2} dQ={dQ} setDQ={setDQ} odw={odw} setODW={setODW} setNR={setNR} setTab={setTab} setSE={setSE} setAIn={setAIn} dictF={dictF} translation={translation}/>}
+          {tab==="settings" && <SettingsContent T={T} isDesktop={isDesktop} isMobile={isMobile} isTablet={isTablet} theme={theme} changeTheme={changeTheme} fs={fs} incFS={incFS} decFS={decFS} apiKey={apiKey} handleApiKey={handleApiKey} translation={translation}/>}
           {!isDesktop && <BottomNav T={T} tab={tab} setTab={setTab}/>}
         </div>
       </div>
