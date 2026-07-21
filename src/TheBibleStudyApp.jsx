@@ -296,7 +296,7 @@ function BottomNav({ T, tab, setTab }) {
 }
 
 // ─── READER ──────────────────────────────────────────────────────────────────
-function ReaderContent({ T, isDesktop, isTablet, isMobile, bookName, chapter, maxCh, verses, loading, hl, daily, fs, translation, changeTranslation, setSBP, setSCP, toggleHL, setNR, setTab, setSE, setAIn, setCh }) {
+function ReaderContent({ T, isDesktop, isTablet, isMobile, bookName, chapter, maxCh, verses, loading, hl, daily, fs, translation, changeTranslation, panelCollapsed, togglePanel, setSBP, setSCP, toggleHL, setNR, setTab, setSE, setAIn, setCh }) {
   // Editorial picker chips: bordered ink, square, uppercase (design's "JOHN ▾ / CH. 3 ▾")
   const pill = () => ({ background:"transparent", border:`1.5px solid ${T.heading}`, borderRadius:0, padding:isMobile?"5px 10px":"7px 14px", display:"flex", alignItems:"center", gap:6, cursor:"pointer" });
   const pTxt = { color:T.heading, fontSize:isMobile?11:12, fontWeight:600, letterSpacing:".06em", textTransform:"uppercase" };
@@ -426,15 +426,26 @@ function ReaderContent({ T, isDesktop, isTablet, isMobile, bookName, chapter, ma
     <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0 }}>
       {header}
       <div style={{ flex:1, display:"flex", minHeight:0 }}>
-        <div style={{ width:320, flexShrink:0, borderRight:`1px solid ${T.border}`, overflowY:"auto", padding:"36px 24px 28px 32px", boxSizing:"border-box" }}>
-          <div style={{ ...EYEBROW, color:T.accent, marginBottom:14 }}>Chapter {chapterWord(chapter)}</div>
-          <div style={{ fontFamily:SERIF_DISPLAY, fontSize:bigSize(104), lineHeight:.88, letterSpacing:"-.02em", color:T.heading }}>{bookName}<br/>{chapter}</div>
-          <div style={{ marginTop:26 }}>{votd(true)}</div>
-          <div style={{ marginTop:18, fontSize:11, lineHeight:1.6, color:T.muted, borderTop:`1px solid ${T.border}`, paddingTop:14 }}>
-            Margin · tap any verse to highlight, note it, or ask the AI about it.
+        {!panelCollapsed && (
+          <div style={{ width:320, flexShrink:0, borderRight:`1px solid ${T.border}`, overflowY:"auto", padding:"36px 24px 28px 32px", boxSizing:"border-box" }}>
+            <div style={{ ...EYEBROW, color:T.accent, marginBottom:14 }}>Chapter {chapterWord(chapter)}</div>
+            <div style={{ fontFamily:SERIF_DISPLAY, fontSize:bigSize(104), lineHeight:.88, letterSpacing:"-.02em", color:T.heading }}>{bookName}<br/>{chapter}</div>
+            <div style={{ marginTop:26 }}>{votd(true)}</div>
+            <div style={{ marginTop:18, fontSize:11, lineHeight:1.6, color:T.muted, borderTop:`1px solid ${T.border}`, paddingTop:14 }}>
+              Margin · tap any verse to highlight, note it, or ask the AI about it.
+            </div>
           </div>
-        </div>
+        )}
         <div style={{ flex:1, minWidth:0, position:"relative", display:"flex", flexDirection:"column", minHeight:0 }}>
+          {/* Always-visible toggle — collapses/expands the chapter panel */}
+          <button
+            onClick={togglePanel}
+            title={panelCollapsed ? "Show chapter panel" : "Hide chapter panel"}
+            aria-label={panelCollapsed ? "Show chapter panel" : "Hide chapter panel"}
+            style={{ position:"absolute", top:10, left:10, zIndex:5, width:30, height:30, background:T.chrome, border:`1px solid ${T.border}`, borderRadius:2, color:T.muted, cursor:"pointer", display:"flex", alignItems:"center", justifyContent:"center" }}
+          >
+            <i className={`ti ${panelCollapsed ? "ti-layout-sidebar-left-expand" : "ti-layout-sidebar-left-collapse"}`} style={{ fontSize:16 }} aria-hidden="true"/>
+          </button>
           <div ref={scrollRef} style={{ flex:1, overflowY:"auto", padding:"36px 48px 0" }}>
             <div style={{ maxWidth:960 }}>{versesJsx}</div>
           </div>
@@ -752,6 +763,7 @@ export default function BibleStudyApp() {
   const [theme, setTheme] = useState("light");
   const [fs, setFS]       = useState(17);
   const [translation, setTranslation] = useState("KJV");
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
 
   const [prefId, setPrefId] = useState(null);
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("bsa_api_key") || "");
@@ -834,17 +846,18 @@ export default function BibleStudyApp() {
 
   async function loadPrefs() {
     const { data } = await supabase.from("preferences").select("*").limit(1).maybeSingle();
-    if (data) { setTheme(data.theme || "light"); setFS(data.font_size || 17); setTranslation(data.translation === "ASV" ? "ASV" : "KJV"); setPrefId(data.id); }
+    if (data) { setTheme(data.theme || "light"); setFS(data.font_size || 17); setTranslation(data.translation === "ASV" ? "ASV" : "KJV"); setPanelCollapsed(data.chapter_panel_collapsed === true); setPrefId(data.id); }
   }
-  async function savePrefsDB(t, f, tr) {
-    const payload = { theme: t, font_size: f, translation: tr, updated_at: new Date().toISOString() };
+  async function savePrefsDB(t, f, tr, pc) {
+    const payload = { theme: t, font_size: f, translation: tr, chapter_panel_collapsed: pc, updated_at: new Date().toISOString() };
     if (prefId) { await supabase.from("preferences").update(payload).eq("id", prefId); }
     else { const { data } = await supabase.from("preferences").insert(payload).select().single(); if (data) setPrefId(data.id); }
   }
-  function changeTheme(t) { setTheme(t); savePrefsDB(t, fs, translation); }
-  function incFS() { const n = Math.min(28, fs + 1); setFS(n); savePrefsDB(theme, n, translation); }
-  function decFS() { const n = Math.max(12, fs - 1); setFS(n); savePrefsDB(theme, n, translation); }
-  function changeTranslation(tr) { setTranslation(tr); savePrefsDB(theme, fs, tr); }
+  function changeTheme(t) { setTheme(t); savePrefsDB(t, fs, translation, panelCollapsed); }
+  function incFS() { const n = Math.min(28, fs + 1); setFS(n); savePrefsDB(theme, n, translation, panelCollapsed); }
+  function decFS() { const n = Math.max(12, fs - 1); setFS(n); savePrefsDB(theme, n, translation, panelCollapsed); }
+  function changeTranslation(tr) { setTranslation(tr); savePrefsDB(theme, fs, tr, panelCollapsed); }
+  function togglePanel() { const v = !panelCollapsed; setPanelCollapsed(v); savePrefsDB(theme, fs, translation, v); }
   function handleApiKey(val) { setApiKey(val); localStorage.setItem("bsa_api_key", val); }
 
   async function fetchCh() {
@@ -1245,7 +1258,7 @@ export default function BibleStudyApp() {
       <div style={{ display:"flex", flex:1, minHeight:0, height:"100%" }}>
         {isDesktop && <Sidebar T={T} tab={tab} setTab={setTab} translation={translation}/>}
         <div style={{ flex:1, display:"flex", flexDirection:"column", minHeight:0, overflow:"hidden", paddingBottom:!isDesktop?64:0 }}>
-          {tab==="read"     && <ReaderContent T={T} isDesktop={isDesktop} isTablet={isTablet} isMobile={isMobile} bookName={bookName} chapter={chapter} maxCh={maxCh} verses={verses} loading={loading} hl={hl} daily={daily} fs={fs} translation={translation} changeTranslation={changeTranslation} setSBP={setSBP} setSCP={setSCP} toggleHL={toggleHL} setNR={setNR} setTab={setTab} setSE={setSE} setAIn={setAIn} setCh={setCh}/>}
+          {tab==="read"     && <ReaderContent T={T} isDesktop={isDesktop} isTablet={isTablet} isMobile={isMobile} bookName={bookName} chapter={chapter} maxCh={maxCh} verses={verses} loading={loading} hl={hl} daily={daily} fs={fs} translation={translation} changeTranslation={changeTranslation} panelCollapsed={panelCollapsed} togglePanel={togglePanel} setSBP={setSBP} setSCP={setSCP} toggleHL={toggleHL} setNR={setNR} setTab={setTab} setSE={setSE} setAIn={setAIn} setCh={setCh}/>}
           {tab==="notes"    && <NotesContent T={T} isDesktop={isDesktop} isMobile={isMobile} notes={notes} translation={translation} setSE={openNewNote} deleteNote={deleteNote} openEdit={openEdit}/>}
           {tab==="ai"       && <AIContent T={T} isDesktop={isDesktop} isMobile={isMobile} aiMsgs={aiMsgs} aiIn={aiIn} setAIn={setAIn} aiLd={aiLd} chatEnd={chatEnd} sendAI={sendAI}/>}
           {tab==="search"   && <SearchContent T={T} isDesktop={isDesktop} isMobile={isMobile} sRef={sRef} setSRef={setSRef} doSearch={doSearch} sLd={sLd} sRes={sRes} sRef2={sRef2} dQ={dQ} setDQ={setDQ} odw={odw} setODW={setODW} setNR={setNR} setTab={setTab} setSE={setSE} setAIn={setAIn} dictF={dictF} translation={translation}/>}
