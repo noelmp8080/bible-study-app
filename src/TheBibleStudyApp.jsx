@@ -21,6 +21,7 @@ const BOOKS_NT = [
   ["Philemon",1],["Hebrews",13],["James",5],["1 Peter",5],["2 Peter",3],
   ["1 John",5],["2 John",1],["3 John",1],["Jude",1],["Revelation",22]
 ];
+const BOOKS = [...BOOKS_OT, ...BOOKS_NT]; // [name, chapterCount] — used to validate/restore a synced position
 const NAV = [["read","ti-book-2","Read"],["notes","ti-notebook","Notes"],["ai","ti-sparkles","Ask AI"],["search","ti-search","Search"],["settings","ti-settings","Prefs"]];
 
 // Single-user app: preferences live in one fixed-id singleton row that every
@@ -812,6 +813,8 @@ export default function BibleStudyApp() {
   const [aiLd, setAL]   = useState(false);
   const chatEnd = useRef(null);
   const fetchIdRef = useRef(0); // guards against out-of-order chapter/translation fetches
+  const posRef      = useRef({ book: "John", chapter: 3 }); // current reading position, read into the prefs payload
+  const savedPosRef = useRef("John|3");                     // last-persisted position, to skip redundant writes
 
   const [sRef, setSRef] = useState("");
   const [sRes, setSRes] = useState([]);
@@ -850,10 +853,23 @@ export default function BibleStudyApp() {
   async function loadPrefs() {
     const { data, error } = await supabase.from("preferences").select("*").eq("id", PREFS_ID).maybeSingle();
     if (error) { console.warn("[loadPrefs] preferences read failed:", error.message); return; }
-    if (data) { setTheme(data.theme || "light"); setFS(data.font_size || 17); setTranslation(data.translation === "ASV" ? "ASV" : "KJV"); setPanelCollapsed(data.chapter_panel_collapsed === true); }
+    if (data) {
+      setTheme(data.theme || "light"); setFS(data.font_size || 17); setTranslation(data.translation === "ASV" ? "ASV" : "KJV"); setPanelCollapsed(data.chapter_panel_collapsed === true);
+      // Adopt the saved reading position on boot only (no mid-read jumps). Fall
+      // back to the John 3 default if the stored book/chapter is missing or out of range.
+      const found = BOOKS.find(([n]) => n === data.current_book);
+      const ch    = data.current_chapter;
+      if (found && Number.isInteger(ch) && ch >= 1 && ch <= found[1]) {
+        posRef.current      = { book: found[0], chapter: ch };
+        savedPosRef.current = `${found[0]}|${ch}`; // pre-set so adoption doesn't echo a redundant write
+        setBN(found[0]); setMC(found[1]); setCh(ch);
+      }
+    }
   }
   async function savePrefsDB(t, f, tr, pc) {
-    const payload = { id: PREFS_ID, theme: t, font_size: f, translation: tr, chapter_panel_collapsed: pc, updated_at: new Date().toISOString() };
+    const payload = { id: PREFS_ID, theme: t, font_size: f, translation: tr, chapter_panel_collapsed: pc,
+                      current_book: posRef.current.book, current_chapter: posRef.current.chapter,
+                      updated_at: new Date().toISOString() };
     const { error } = await supabase.from("preferences").upsert(payload);
     if (error) console.warn("[savePrefsDB] preferences write failed:", error.message);
   }
@@ -863,6 +879,17 @@ export default function BibleStudyApp() {
   function changeTranslation(tr) { setTranslation(tr); savePrefsDB(theme, fs, tr, panelCollapsed); }
   function togglePanel() { const v = !panelCollapsed; setPanelCollapsed(v); savePrefsDB(theme, fs, translation, v); }
   function handleApiKey(val) { setApiKey(val); localStorage.setItem("bsa_api_key", val); }
+
+  // Persist reading position whenever book/chapter actually change (any nav).
+  // Runs on settings changes too, but the savedPosRef guard skips those as
+  // no-ops, and skips the boot adoption, so no redundant writes.
+  useEffect(() => {
+    posRef.current = { book: bookName, chapter };
+    const key = `${bookName}|${chapter}`;
+    if (key === savedPosRef.current) return;
+    savedPosRef.current = key;
+    savePrefsDB(theme, fs, translation, panelCollapsed);
+  }, [bookName, chapter, theme, fs, translation, panelCollapsed]);
 
   async function fetchCh() {
     const id = ++fetchIdRef.current; // take a ticket; only the latest fetch may apply state
