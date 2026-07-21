@@ -23,6 +23,10 @@ const BOOKS_NT = [
 ];
 const NAV = [["read","ti-book-2","Read"],["notes","ti-notebook","Notes"],["ai","ti-sparkles","Ask AI"],["search","ti-search","Search"],["settings","ti-settings","Prefs"]];
 
+// Single-user app: preferences live in one fixed-id singleton row that every
+// device reads and writes, so settings sync across devices.
+const PREFS_ID = "00000000-0000-0000-0000-000000000001";
+
 /* Highlights and notes are keyed by (book, chapter, verse) reference only,
    so they are shared across translations by design. */
 const TRANSLATIONS = {
@@ -765,7 +769,6 @@ export default function BibleStudyApp() {
   const [translation, setTranslation] = useState("KJV");
   const [panelCollapsed, setPanelCollapsed] = useState(false);
 
-  const [prefId, setPrefId] = useState(null);
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("bsa_api_key") || "");
 
   const [bookName, setBN] = useState("John");
@@ -845,13 +848,14 @@ export default function BibleStudyApp() {
   useEffect(() => () => revokeRecordingBlobURLs(), []);
 
   async function loadPrefs() {
-    const { data } = await supabase.from("preferences").select("*").limit(1).maybeSingle();
-    if (data) { setTheme(data.theme || "light"); setFS(data.font_size || 17); setTranslation(data.translation === "ASV" ? "ASV" : "KJV"); setPanelCollapsed(data.chapter_panel_collapsed === true); setPrefId(data.id); }
+    const { data, error } = await supabase.from("preferences").select("*").eq("id", PREFS_ID).maybeSingle();
+    if (error) { console.warn("[loadPrefs] preferences read failed:", error.message); return; }
+    if (data) { setTheme(data.theme || "light"); setFS(data.font_size || 17); setTranslation(data.translation === "ASV" ? "ASV" : "KJV"); setPanelCollapsed(data.chapter_panel_collapsed === true); }
   }
   async function savePrefsDB(t, f, tr, pc) {
-    const payload = { theme: t, font_size: f, translation: tr, chapter_panel_collapsed: pc, updated_at: new Date().toISOString() };
-    if (prefId) { await supabase.from("preferences").update(payload).eq("id", prefId); }
-    else { const { data } = await supabase.from("preferences").insert(payload).select().single(); if (data) setPrefId(data.id); }
+    const payload = { id: PREFS_ID, theme: t, font_size: f, translation: tr, chapter_panel_collapsed: pc, updated_at: new Date().toISOString() };
+    const { error } = await supabase.from("preferences").upsert(payload);
+    if (error) console.warn("[savePrefsDB] preferences write failed:", error.message);
   }
   function changeTheme(t) { setTheme(t); savePrefsDB(t, fs, translation, panelCollapsed); }
   function incFS() { const n = Math.min(28, fs + 1); setFS(n); savePrefsDB(theme, n, translation, panelCollapsed); }
