@@ -52,12 +52,25 @@ export function chunkVerses(verses, max = 1500) {
 }
 
 const recent = new Map(); // text → { at, clip }; the links last an hour
+const pending = new Map(); // text → the request in flight
 
-/** Resolve to { url, starts } for these verse texts. Throws SpeechError (or AbortError). */
-export async function fetchClip(segments, { previous, next, signal } = {}) {
+/**
+ * Resolve to { url, starts } for these verse texts. Throws SpeechError.
+ *
+ * A request is never cancelled and never repeated while it is in flight: the
+ * server goes on generating (and charging) whether or not anyone is still
+ * listening, so stopping and starting again must wait for the same answer
+ * rather than pay for a second one.
+ */
+export function fetchClip(segments, { previous, next } = {}) {
   const key = segments.join("\n");
   const hit = recent.get(key);
-  if (hit && Date.now() - hit.at < 45 * 60 * 1000) return hit.clip;
+  if (hit && Date.now() - hit.at < 45 * 60 * 1000) return Promise.resolve(hit.clip);
+  if (!pending.has(key)) pending.set(key, request(key, segments, previous, next).finally(() => pending.delete(key)));
+  return pending.get(key);
+}
+
+async function request(key, segments, previous, next) {
   try {
     const { data } = await supabase.auth.getSession();
     const token = data.session?.access_token;
@@ -65,12 +78,11 @@ export async function fetchClip(segments, { previous, next, signal } = {}) {
     let res;
     try {
       res = await fetch(ENDPOINT, {
-        method: "POST", signal,
+        method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, apikey: import.meta.env.VITE_SUPABASE_ANON_KEY },
         body: JSON.stringify({ segments, previous, next }),
       });
-    } catch (err) {
-      if (err.name === "AbortError") throw err;
+    } catch {
       throw new SpeechError(`Could not reach the natural voice. ${DEVICE}`);
     }
     if (!res.ok) {

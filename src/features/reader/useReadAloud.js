@@ -39,7 +39,6 @@ export function useReadAloud(verses, { onVerse, onNotice } = {}) {
   const run = useRef(0);          // increments to cancel an in-flight sequence
   const mode = useRef(null);      // "natural" | "device" while reading
   const audioRef = useRef(null);
-  const abortRef = useRef(null);
   const rateRef = useRef(1);
   const onVerseRef = useRef(onVerse);
   const onNoticeRef = useRef(onNotice);
@@ -51,10 +50,12 @@ export function useReadAloud(verses, { onVerse, onNotice } = {}) {
   /** Silence everything in flight. */
   const halt = useCallback(() => {
     run.current++;
-    abortRef.current?.abort(); abortRef.current = null;
     const audio = audioRef.current;
     if (audio) { audio.ontimeupdate = audio.onended = audio.onerror = null; audio.pause(); }
-    if (hasDeviceVoice) window.speechSynthesis.cancel();
+    // Only touch the device's speech engine when it is the one reading. In an
+    // iPad Home Screen app the natural voice's player reported "playing" and
+    // never started; waking the speech engine first is the suspected cause.
+    if (mode.current === "device") window.speechSynthesis.cancel();
     mode.current = null;
   }, []);
 
@@ -63,6 +64,7 @@ export function useReadAloud(verses, { onVerse, onNotice } = {}) {
   const playDevice = useCallback((id, list) => {
     if (!hasDeviceVoice || !list.length) { setState("idle"); setVerse(null); return; }
     mode.current = "device";
+    window.speechSynthesis.cancel(); // clear anything left queued
     let i = 0;
     const next = () => {
       if (id !== run.current) return;
@@ -97,17 +99,11 @@ export function useReadAloud(verses, { onVerse, onNotice } = {}) {
     audio.play().catch(() => {}); // inside the tap; see silence()
     mode.current = "natural";
     setState("loading");
-    const abort = (abortRef.current = new AbortController());
-    const clips = new Map();
-    const clip = (k) => {
-      if (!clips.has(k)) {
-        clips.set(k, fetchClip(chunks[k].segments, {
-          previous: chunks[k - 1]?.segments.join(" "), next: chunks[k + 1]?.segments.join(" "), signal: abort.signal,
-        }));
-      }
-      return clips.get(k);
-    };
+    const clip = (k) => fetchClip(chunks[k].segments, {
+      previous: chunks[k - 1]?.segments.join(" "), next: chunks[k + 1]?.segments.join(" "),
+    });
     let reached = list[0].verse;
+    let live = -1; // the piece now in the player
     const toDevice = (err) => {
       if (id !== run.current || err?.name === "AbortError") return;
       audio.ontimeupdate = audio.onended = audio.onerror = null;
@@ -120,6 +116,7 @@ export function useReadAloud(verses, { onVerse, onNotice } = {}) {
       if (id !== run.current) return;
       if (k >= chunks.length) { mode.current = null; setState("idle"); setVerse(null); return; }
       const chunk = chunks[k];
+      live = k;
       reached = fromVerse || chunk.verses[0];
       let got;
       try { got = await clip(k); } catch (err) { toDevice(err); return; }
@@ -154,6 +151,22 @@ export function useReadAloud(verses, { onVerse, onNotice } = {}) {
       if (id !== run.current) return;
       setState((s) => (s === "loading" ? "playing" : s));
       if (k + 1 < chunks.length) clip(k + 1).catch(() => {}); // have the next piece ready
+
+      // A phone can report "playing" and never start. Check that the clock
+      // really moves: nudge the player once, then give way to the device voice
+      // and say so, rather than sit silent on the first verse.
+      const from = audio.currentTime;
+      const stuck = () => id === run.current && live === k && !audio.paused && !audio.ended && audio.currentTime <= from + 0.05;
+      setTimeout(() => {
+        if (!stuck()) return;
+        audio.pause();
+        audio.play().catch(() => {});
+        setTimeout(() => {
+          if (!stuck()) return;
+          const where = `${audio.readyState}-${audio.networkState}-${document.visibilityState}${window.navigator.standalone ? "-app" : ""}`;
+          toDevice(new Error(`This device would not start the natural voice audio (${where}). Using this device's voice instead.`));
+        }, 2500);
+      }, 3000);
     };
 
     const k = chunks.findIndex((c) => c.verses[c.verses.length - 1] >= list[0].verse);
