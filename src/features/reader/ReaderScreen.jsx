@@ -178,6 +178,7 @@ function Reader({ book, chapter, initialVerse, scrollVerse }) {
   // ── Read aloud ────────────────────────────────────────────────────────────
   const speech = useReadAloud(main.verses, {
     onVerse: (n) => centreVerse(scrollRef.current, n, true),
+    onNotice: (message) => toast(message),
   });
 
   function toggleChapterBookmark() {
@@ -214,8 +215,10 @@ function Reader({ book, chapter, initialVerse, scrollVerse }) {
         <Icon name="bookmark" size={17} fill={chapterBookmark ? "currentColor" : "none"} />
       </button>
       {canSpeak && (
-        <button type="button" className={`icon-btn${speech.state !== "idle" ? " on" : ""}`} aria-pressed={speech.state !== "idle"}
-          aria-label={speech.state === "idle" ? "Read this chapter aloud" : "Stop reading aloud"} title="Read aloud"
+        <button type="button" className={`icon-btn${speech.state !== "idle" ? " on" : ""}${speech.state === "loading" ? " pulse" : ""}`}
+          aria-pressed={speech.state !== "idle"} aria-busy={speech.state === "loading"}
+          aria-label={speech.state === "idle" ? "Read this chapter aloud" : speech.state === "loading" ? "Getting the voice ready. Stop reading aloud" : "Stop reading aloud"}
+          title={speech.state === "loading" ? "Getting the voice ready…" : "Read aloud"}
           onClick={() => (speech.state === "idle" ? speech.play(picked[0]) : speech.stop())}>
           <Icon name="speaker" size={17} />
         </button>

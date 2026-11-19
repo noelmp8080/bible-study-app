@@ -91,7 +91,7 @@ function Household({ data, userId, reload }) {
   const [problem, setProblem] = useState(null);
   const [email, setEmail] = useState("");
   const chapter = useChapter(prefs.translation, first?.book || "John", first?.chapter || 1);
-  const speech = useReadAloud(first ? chapter.verses : null);
+  const speech = useReadAloud(first ? chapter.verses : null, { onNotice: (message) => setProblem(message) });
   const iHaveRead = !!reading && reading.every((c) => readSet.has(chapterKey(c.book, c.chapter)));
 
   // Members' read status: refreshed when my own reading of tonight's passage changes.
@@ -139,8 +139,9 @@ function Household({ data, userId, reload }) {
           <button type="button" className="btn btn-outline btn-lg grow" disabled={busy !== null || !online} onClick={() => makeQuestions(true)}>{busy === "questions" ? "Writing…" : "New questions"}</button>
           {canSpeak && (
             <button type="button" className="btn btn-accent btn-lg grow" disabled={!chapter.verses}
-              onClick={() => (speech.state === "idle" ? speech.play() : speech.state === "playing" ? speech.pause() : speech.resume())}>
-              <Icon name={speech.state === "playing" ? "pause" : "speaker"} size={16} />{speech.state === "idle" ? "Read it aloud" : speech.state === "playing" ? "Pause" : "Resume"}
+              onClick={() => (speech.state === "idle" ? speech.play() : speech.state === "loading" ? speech.stop() : speech.state === "playing" ? speech.pause() : speech.resume())}>
+              <Icon name={speech.state === "playing" ? "pause" : "speaker"} size={16} />
+              {speech.state === "idle" ? "Read it aloud" : speech.state === "loading" ? "Getting the voice…" : speech.state === "playing" ? "Pause" : "Resume"}
             </button>
           )}
         </div>

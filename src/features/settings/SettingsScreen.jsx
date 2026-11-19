@@ -8,6 +8,7 @@ import { useBibleStatus } from "../../hooks/useBible.js";
 import { syncNow } from "../../lib/store.js";
 import { loadKJV } from "../../lib/bible.js";
 import { TRANSLATIONS } from "../../lib/books.js";
+import { voiceChoice, setVoiceChoice } from "../../lib/speech.js";
 
 const THEME_LOOK = { light: ["Light", "#faf9f6", "#181614"], dark: ["Dark", "#141210", "#e6e1d8"], sepia: ["Sepia", "#f5efdc", "#3b2d1e"] };
 
@@ -17,6 +18,8 @@ export default function SettingsScreen() {
   const sync = useSync();
   const bible = useBibleStatus();
   const [handle, setHandle] = useState(prefs.share_handle);
+  const [voice, setVoice] = useState(voiceChoice);
+  const pickVoice = (choice) => { setVoiceChoice(choice); setVoice(choice); };
 
   return (
     <div className="screen">
@@ -71,6 +74,18 @@ export default function SettingsScreen() {
                 <SyncStatus />
                 {bible === "error" && <button type="button" className="btn btn-sm btn-outline" onClick={() => loadKJV().catch(() => {})}>Retry download</button>}
               </div>
+
+              <h2 className="label" style={{ marginTop: 8 }}>Read aloud</h2>
+              <div className="seg" role="group" aria-label="Read-aloud voice">
+                <button type="button" aria-pressed={voice === "natural"} onClick={() => pickVoice("natural")}>Natural voice</button>
+                <button type="button" aria-pressed={voice === "device"} onClick={() => pickVoice("device")}>This device’s voice</button>
+              </div>
+              <p className="muted2" style={{ fontSize: 13, lineHeight: 1.55 }}>
+                {voice === "natural"
+                  ? "A natural-sounding voice from ElevenLabs. It needs a connection. Each passage is made once and then kept, so it starts sooner the next time. Offline, or when that voice is unavailable, this device’s voice reads instead."
+                  : "The voice built into this device. It works offline."}
+                {" "}This choice is kept on this device only.
+              </p>
 
               <h2 className="label" style={{ marginTop: 8 }}>Verse cards</h2>
               <label className="field">

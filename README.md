@@ -71,6 +71,13 @@ Every table has row level security, so each account sees only its own rows.
 **AI.** The browser never holds an Anthropic key. It calls the `scholar` Edge
 Function with the signed-in user's token; the key is a function secret.
 
+**Read aloud.** The `speak` Edge Function turns a chapter into speech with
+ElevenLabs, a few verses at a time, and keeps each piece: the MP3 in the
+private `bsa-speech` bucket, its verse timings in `speech_clips`. A passage
+costs ElevenLabs credits the first time anyone hears it and is a plain
+download after that. Changing the voice or model starts a fresh set. Offline,
+or when that voice is off or unavailable, the device's own voice reads.
+
 ## Setting up Supabase
 
 The app is written to keep working at every step below; what cannot sync yet
@@ -91,6 +98,17 @@ stays on the device and Preferences says so.
    ```
    Optional secrets: `SCHOLAR_MODEL` (default `claude-opus-5-5`) and
    `SCHOLAR_FALLBACKS=off`.
+
+   For read aloud in a natural voice, run `…001000_speech` (additive), then:
+   ```bash
+   npx supabase functions deploy speak --no-verify-jwt
+   npx supabase secrets set ELEVENLABS_API_KEY=…
+   ```
+   (The function checks the caller's sign-in itself, so the gateway check is off.)
+   Optional secrets: `SPEAK_VOICE_ID` (an ElevenLabs voice id; default is the
+   premade voice "George"), `SPEAK_MODEL` (default `eleven_multilingual_v2`)
+   and `SPEAK_DAILY_CHARS` (ceiling on newly generated characters per day,
+   default 60000). Until this is done, read aloud uses the device's voice.
 5. **Auth settings** in the Supabase dashboard: add the site URL to the
    redirect allow-list. To let people type a code instead of following the
    link (needed in an installed PWA and in the desktop app), add
