@@ -1,78 +1,54 @@
-const { app, BrowserWindow, ipcMain } = require('electron')
+// Desktop shell for The Bible Study App.
+//
+// The built web app in dist/ is served over a private "app://" scheme rather
+// than file://, so that it behaves like the website: fetch() works (the app
+// downloads its Bible text that way), IndexedDB has a stable origin, and page
+// URLs such as /read/john/3 resolve.
+//
+// There is no AI code and no secret here. The desktop app signs in and calls
+// the same "scholar" Supabase Edge Function as the web app; the Anthropic key
+// lives only in that function's secrets. The .env file is not packaged.
+const { app, BrowserWindow, net, protocol, shell } = require('electron')
+const fs = require('fs')
 const path = require('path')
-const https = require('https')
+const { pathToFileURL } = require('url')
 
-// Load .env — works in dev and in packaged app (dotenv reads from asar via Electron's fs patch)
-try {
-  require('dotenv').config({ path: path.join(__dirname, '../.env') })
-} catch {}
+const DIST = path.join(__dirname, '../dist')
+
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'app', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } },
+])
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 900,
+    width: 1280,
+    height: 860,
+    minWidth: 380,
     minHeight: 600,
     title: 'Bible Study App',
     icon: path.join(__dirname, '../public/icon.ico'),
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      preload: path.join(__dirname, 'preload.cjs'),
-    },
+    webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true },
   })
-
-  win.loadFile(path.join(__dirname, '../dist/index.html'))
+  // Links to other sites open in the user's browser, not inside the app.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (/^https?:/.test(url)) shell.openExternal(url)
+    return { action: 'deny' }
+  })
+  win.loadURL('app://bundle/')
 }
 
-// ── IPC: Anthropic API call (main process — bypasses renderer CSP/CORS) ──────
-ipcMain.handle('ask-scholar', async (_event, messages, systemPrompt) => {
-  const apiKey = process.env.VITE_ANTHROPIC_API_KEY
-  if (!apiKey) throw new Error('VITE_ANTHROPIC_API_KEY is not set')
-
-  const body = JSON.stringify({
-    model:      'claude-sonnet-4-6',
-    max_tokens: 600,
-    system:     systemPrompt,
-    messages,
-  })
-
-  return new Promise((resolve, reject) => {
-    const req = https.request(
-      {
-        hostname: 'api.anthropic.com',
-        path:     '/v1/messages',
-        method:   'POST',
-        headers: {
-          'Content-Type':    'application/json',
-          'x-api-key':       apiKey,
-          'anthropic-version': '2023-06-01',
-          'Content-Length':  Buffer.byteLength(body),
-        },
-      },
-      res => {
-        let data = ''
-        res.on('data', chunk => { data += chunk })
-        res.on('end', () => {
-          try {
-            const parsed = JSON.parse(data)
-            if (parsed.error) reject(new Error(parsed.error.message))
-            else resolve(parsed.content?.[0]?.text ?? 'No response received.')
-          } catch {
-            reject(new Error('Failed to parse API response'))
-          }
-        })
-      }
-    )
-    req.on('error', reject)
-    req.write(body)
-    req.end()
-  })
-})
-
 app.whenReady().then(() => {
-  createWindow()
+  protocol.handle('app', (request) => {
+    const { pathname } = new URL(request.url)
+    let file = path.normalize(path.join(DIST, decodeURIComponent(pathname)))
+    // Anything that is not a real file inside dist/ is an app route: serve the shell.
+    if (!file.startsWith(DIST) || !fs.existsSync(file) || fs.statSync(file).isDirectory()) {
+      file = path.join(DIST, 'index.html')
+    }
+    return net.fetch(pathToFileURL(file).toString())
+  })
 
+  createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
   })

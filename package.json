@@ -4,11 +4,12 @@
   "version": "1.0.0",
   "type": "module",
   "main": "electron/main.cjs",
-  "homepage": "./",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "lint": "eslint .",
+    "plans": "node scripts/build-plans.mjs",
     "electron:dev": "vite build && electron .",
     "electron:build": "vite build && electron-builder --win"
   },
@@ -18,8 +19,7 @@
     "icon": "public/icon.ico",
     "files": [
       "dist/**/*",
-      "electron/**/*",
-      ".env"
+      "electron/**/*"
     ],
     "win": {
       "target": "nsis",
@@ -34,10 +34,13 @@
     }
   },
   "dependencies": {
+    "@fontsource-variable/archivo": "^5.3.0",
+    "@fontsource-variable/source-serif-4": "^5.3.1",
+    "@fontsource/instrument-serif": "^5.3.0",
     "@supabase/supabase-js": "^2.106.2",
-    "dotenv": "^17.4.2",
     "react": "^19.2.5",
-    "react-dom": "^19.2.5"
+    "react-dom": "^19.2.5",
+    "react-router": "^8.5.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

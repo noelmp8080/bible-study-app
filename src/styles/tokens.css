@@ -1,0 +1,110 @@
+/* "The Journal" design tokens. One block per theme, switched by the
+   data-theme attribute on <html>. Values come from the upgrade spec, section 4. */
+
+:root {
+  --font-display: 'Instrument Serif', Georgia, serif;
+  --font-ui: 'Archivo Variable', 'Archivo', system-ui, sans-serif;
+  --font-scripture: 'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif;
+  --scripture-size: 17px;
+
+  /* Highlight swatch buttons are the same in every theme. */
+  --sw-gold: #ecd9ae;
+  --sw-rose: #efc4ba;
+  --sw-sage: #c5d6b4;
+  --sw-sky: #b9cfe2;
+  --sw-ink: #181614;
+}
+
+:root,
+[data-theme='light'] {
+  color-scheme: light;
+  --bg: #faf9f6;
+  --chrome: #faf9f6;
+  --surface: #ffffff;
+  --surface2: #f1eee7;
+  --text: #181614;
+  --heading: #181614;
+  --scripture: #26221e;
+  --muted: #6b655c;
+  --muted2: #5e584f;
+  --border: #e2ded6;
+  --border-strong: #b5ad9f;
+  --ink: #181614;
+  --on-ink: #faf9f6;
+  --on-ink-muted: #cfc8bb;
+  --accent: #8a2318;
+  --on-accent: #ffffff;
+  --accent-soft: rgba(138, 35, 24, 0.07);
+  --accent-border: rgba(138, 35, 24, 0.28);
+  --danger: #a3271b;
+  --ok: #1f6b3a;
+  --track: #e2ded6;
+  --scrim: rgba(0, 0, 0, 0.55);
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.14);
+  --hl-gold: #f3ead9;
+  --hl-rose: #f6dcd6;
+  --hl-sage: #dfe8d6;
+  --hl-sky: #dbe6f0;
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #141210;
+  --chrome: #171412;
+  --surface: #1c1917;
+  --surface2: #211d1a;
+  --text: #e6e1d8;
+  --heading: #f2ede3;
+  --scripture: #d9d3c8;
+  --muted: #a39c90;
+  --muted2: #b3ac9f;
+  --border: #2b2723;
+  --border-strong: #3a352f;
+  --ink: #e6e1d8;
+  --on-ink: #141210;
+  --on-ink-muted: #4a443c;
+  --accent: #d06a52;
+  --on-accent: #141210;
+  --accent-soft: rgba(208, 106, 82, 0.09);
+  --accent-border: rgba(208, 106, 82, 0.32);
+  --danger: #e58a76;
+  --ok: #7fc296;
+  --track: #3a352f;
+  --scrim: rgba(0, 0, 0, 0.7);
+  --shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  --hl-gold: #2e2419;
+  --hl-rose: #3a2320;
+  --hl-sage: #232d1f;
+  --hl-sky: #1e2a36;
+}
+
+[data-theme='sepia'] {
+  color-scheme: light;
+  --bg: #f5efdc;
+  --chrome: #f5efdc;
+  --surface: #fbf6ea;
+  --surface2: #ede4cc;
+  --text: #3b2d1e;
+  --heading: #2c2013;
+  --scripture: #463522;
+  --muted: #6f5a40;
+  --muted2: #5f4c35;
+  --border: #e0d5b8;
+  --border-strong: #b9a983;
+  --ink: #2c2013;
+  --on-ink: #f5efdc;
+  --on-ink-muted: #d6c9a8;
+  --accent: #8a2318;
+  --on-accent: #ffffff;
+  --accent-soft: rgba(138, 35, 24, 0.07);
+  --accent-border: rgba(138, 35, 24, 0.28);
+  --danger: #a3271b;
+  --ok: #1f6b3a;
+  --track: #e0d5b8;
+  --scrim: rgba(40, 28, 12, 0.55);
+  --shadow: 0 12px 40px rgba(60, 40, 10, 0.18);
+  --hl-gold: #ecdfc0;
+  --hl-rose: #f0d6c8;
+  --hl-sage: #dde2c4;
+  --hl-sky: #d6dfd9;
+}

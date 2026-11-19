@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Bible Study App: upgrade spec for implementation</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Archivo:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&display=swap">
+<style>
+html{background:#faf9f6}
+body{margin:0;color:#181614;font-family:'Archivo',system-ui,sans-serif;font-size:15px;line-height:1.6}
+.page{max-width:1500px;margin:0 auto;padding:48px 32px 96px;box-sizing:border-box}
+.doc.eyebrow{font-size:11px;letter-spacing:.26em;text-transform:uppercase;font-weight:700;color:#8a2318;margin:0 0 12px}
+h1.doc{font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:clamp(40px,6vw,76px);line-height:.95;letter-spacing:-.02em;margin:0 0 20px}
+h2.doc{font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:40px;line-height:1.05;margin:72px 0 16px;padding-top:24px;border-top:2px solid #181614}
+h3.doc{font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:28px;line-height:1.15;margin:48px 0 14px}
+.doc h4{font-size:11px;letter-spacing:.2em;text-transform:uppercase;font-weight:700;color:#5e584f;margin:18px 0 6px}
+.doc h4:first-child{margin-top:0}
+.doc p{margin:0 0 12px;max-width:78ch}
+.doc ul,.doc ol{margin:0 0 12px;padding-left:20px;max-width:78ch}
+.doc li{margin-bottom:6px}
+.doc code,.doc pre{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px}
+.doc code{background:#f1eee7;padding:1px 5px}
+.doc pre{background:#181614;color:#f2ede3;padding:18px 20px;overflow-x:auto;line-height:1.55;margin:0 0 16px}
+.doc pre code{background:none;padding:0;color:inherit}
+.doc.lead{font-size:18px;max-width:70ch;color:#26221e}
+.doc.note{background:#fff;border:1px solid #e2ded6;border-top:2px solid #8a2318;padding:16px 20px;margin:0 0 16px;max-width:90ch}
+.doc.toc{display:flex;flex-wrap:wrap;gap:8px;margin:24px 0 0}
+.doc.toc a{display:inline-block;padding:8px 12px;border:1.5px solid #181614;color:#181614;text-decoration:none;font-size:12px;font-weight:600;letter-spacing:.04em}
+.doc.toc a:hover{background:#181614;color:#faf9f6}
+table.doc{border-collapse:collapse;width:100%;margin:0 0 16px;font-size:14px;background:#fff}
+table.doc th,table.doc td{border:1px solid #e2ded6;padding:8px 12px;text-align:left;vertical-align:top}
+table.doc th{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:#5e584f;background:#f1eee7}
+.tablewrap{overflow-x:auto}
+.sw{display:inline-block;width:14px;height:14px;border:1px solid #6b655c;vertical-align:-2px;margin-right:6px}
+.pair{display:flex;flex-wrap:wrap;gap:32px;align-items:flex-start}
+.pair .spec{flex:1 1 420px;min-width:0}
+.frame{line-height:normal;font-size:16px;border:1px solid #b5ad9f;box-shadow:0 12px 40px rgba(0,0,0,.10);background:#fff}
+.frame a{color:#8a2318}
+.frame.phone{flex:0 0 390px;width:390px;max-width:100%;overflow:hidden}
+.frame.wide{overflow-x:auto;margin-top:18px}
+.spec.cols{display:flex;flex-wrap:wrap;gap:8px 40px}
+.spec.cols>div{flex:1 1 420px;min-width:0}
+.phase{background:#fff;border:1px solid #e2ded6;padding:20px 24px;margin:0 0 14px}
+.phase h3{font-family:'Instrument Serif',Georgia,serif;font-weight:400;font-size:26px;line-height:1.15;margin:0 0 4px}
+.phase .meta{font-size:12px;font-weight:600;color:#5e584f;margin:0 0 12px}
+</style>
+</head>
+<body>
+<div class="page">
+
+<p class="doc eyebrow">Implementation spec · prepared 19 November 2026</p>
+<h1 class="doc">The Bible Study App:<br>upgrade spec</h1>
+<p class="doc lead">This single file is the brief for an intensive update of the app in this repository. It holds the audit of what exists, the design tokens, ten screen mockups as real HTML with inline styles, the behaviour of each feature, the data model, and a phased build order with acceptance checks.</p>
+
+<nav class="doc toc" aria-label="Contents">
+<a href="#read-first">1 Read first</a><a href="#current">2 Current state</a><a href="#fix">3 Defects to fix</a><a href="#tokens">4 Design tokens</a><a href="#phases">5 Build phases</a><a href="#data">6 Data model</a><a href="#screens-a">7 Core screens</a><a href="#screens-b">8 New features</a><a href="#done">9 Definition of done</a><a href="#open">10 Open questions</a>
+</nav>
+
+<h2 class="doc" id="read-first">1 · Read first (instructions for the implementing agent)</h2>
+<div class="doc">
+<ol>
+<li><b>Work phase by phase</b>, in the order of section 5. Finish, verify and commit one phase before starting the next. The app must build and deploy after every phase.</li>
+<li><b>Phase 1 is not optional and comes first.</b> The database is currently open to anyone (section 3). No feature work before it is closed.</li>
+<li><b>The mockups are the visual source of truth.</b> Each one in sections 7 and 8 is plain HTML with inline styles: read the markup for exact colours, sizes and spacing. They are static pictures of one state; the behaviour is in the notes beside each. Do not copy the mockup markup wholesale: rebuild it as components using the tokens in section 4.</li>
+<li><b>Keep the existing look.</b> The app's "Journal" editorial theme (Instrument Serif, Archivo, Source Serif 4, square corners, ink and red on paper) stays. All three themes (light, dark, sepia) must work for every new screen. Mockups show light, except Sermon mode, which is always dark.</li>
+<li><b>Do not lose data.</b> The live database holds a few notes and highlights. Every schema change is an additive migration with a backfill; nothing is dropped without asking.</li>
+<li><b>Shared database.</b> The Supabase project is shared with another app whose tables are prefixed <code>para_</code>. Never read, alter or drop any <code>para_*</code> object, and scope every policy change to this app's own tables.</li>
+<li><b>Secrets.</b> Never commit <code>.env</code>. Never put an Anthropic key in a <code>VITE_</code> variable or anywhere the browser or the Electron installer can read it.</li>
+<li><b>Ask before:</b> any destructive SQL, rotating keys, changing the sign-in method, or adding a paid service. The open questions are listed in section 10.</li>
+<li>Sample data in the mockups (plan day, counts, sermon timer, map progress) is illustrative. Scripture text and the search counts are real.</li>
+</ol>
+</div>
+
+<h2 class="doc" id="current">2 · Current state of the repository</h2>
+<div class="doc">
+<div class="tablewrap"><table class="doc">
+<tr><th>Area</th><th>What is there now</th></tr>
+<tr><td>Stack</td><td>React 19, Vite 8, <code>@supabase/supabase-js</code> 2, <code>vite-plugin-pwa</code>, Electron 41 with electron-builder (Windows NSIS). Deployed on Vercel as a static Vite build with an SPA rewrite.</td></tr>
+<tr><td>Entry</td><td><code>src/main.jsx</code> renders <code>src/TheBibleStudyApp.jsx</code>: one file, 1,468 lines, about 45 <code>useState</code> hooks in the root component, all styling inline.</td></tr>
+<tr><td>Dead code</td><td><code>src/App.jsx</code> (699 lines) and <code>src/App.css</code> are an older version that nothing imports. <code>README.md</code> is the Vite template.</td></tr>
+<tr><td>Scripture</td><td>Every chapter is fetched live from <code>bible-api.com</code> (KJV and ASV), with no caching. A complete KJV, <code>src/data/kjv.json</code> (5.2 MB, 66 books, 1,189 chapters, 31,100 verses), is in the repo but only the dead <code>App.jsx</code> imports it.</td></tr>
+<tr><td>Tabs</td><td>Read, Notes, Ask AI, Search, Prefs. Desktop (≥1024px) has a 64px rail and a two-column reader with a collapsible chapter panel; tablet and phone stack with a bottom nav.</td></tr>
+<tr><td>Supabase tables</td><td><code>notes</code>, <code>highlights</code>, <code>preferences</code> (one fixed-id singleton row), <code>recordings</code> (audio as base64 text). No auth. <code>supabase/migrations.sql</code> is behind the live schema: the code reads and writes <code>preferences.translation</code>, <code>chapter_panel_collapsed</code>, <code>current_book</code>, <code>current_chapter</code>, which the file does not create.</td></tr>
+<tr><td>AI</td><td>The browser calls <code>api.anthropic.com</code> directly with a key the user pastes into Preferences (stored in <code>localStorage</code> as <code>bsa_api_key</code>), model <code>claude-sonnet-4-6</code>, no streaming, no passage context, conversation held in memory only.</td></tr>
+<tr><td>Electron</td><td><code>electron/main.cjs</code> exposes an <code>ask-scholar</code> IPC handler that reads <code>VITE_ANTHROPIC_API_KEY</code> from <code>.env</code>, and <code>package.json</code> lists <code>.env</code> in the electron-builder <code>files</code>, so the installer contains that file. The current UI does not call this handler.</td></tr>
+<tr><td>PWA</td><td>Manifest name "Study Bible", theme and background <code>#060c1c</code> (an older navy look), <code>orientation: portrait</code>. Icons come from the Tabler web-font CDN and fonts from Google Fonts, so neither is available offline.</td></tr>
+</table></div>
+</div>
+
+<h2 class="doc" id="fix">3 · Defects to fix</h2>
+<div class="doc">
+<div class="doc note"><b>Critical: open database.</b> Verified on the live project: <code>notes</code>, <code>highlights</code>, <code>preferences</code> and <code>recordings</code> each have one policy, "Allow all", for the <code>public</code> role with <code>USING (true) WITH CHECK (true)</code>. The anon key is in the public bundle, so anyone can read, change or delete every row. Fixed in Phase 1.</div>
+<div class="tablewrap"><table class="doc">
+<tr><th>#</th><th>Defect</th><th>Where</th><th>Fix in</th></tr>
+<tr><td>1</td><td>Electron installer ships <code>.env</code>; handler reads an Anthropic key from it.</td><td><code>package.json</code> build.files, <code>electron/main.cjs</code></td><td>Phase 1</td></tr>
+<tr><td>2</td><td>Browser calls Anthropic directly with a pasted key; API errors surface as "Unable to respond".</td><td><code>sendAI</code>, <code>smartSummary</code></td><td>Phase 1</td></tr>
+<tr><td>3</td><td>Tapping a verse immediately inserts a highlight just to reveal the action row; colour is hardcoded <code>"gold"</code>; the "Highlight" and "Share" buttons in that row do nothing.</td><td><code>toggleHL</code>, <code>ReaderContent</code></td><td>Phase 3</td></tr>
+<tr><td>4</td><td>Bookmark and share icons in the reader header are unwired placeholders.</td><td><code>ReaderContent</code> chips</td><td>Phase 3</td></tr>
+<tr><td>5</td><td>"Snap Photo" only sets <code>has_image = true</code>; no photo is captured or stored.</td><td>note editor</td><td>Phase 2</td></tr>
+<tr><td>6</td><td>Search accepts references only; there is no word search.</td><td><code>doSearch</code></td><td>Phase 4</td></tr>
+<tr><td>7</td><td>No offline reading; chapters refetch on every visit; highlights flash off while a chapter loads.</td><td><code>fetchCh</code></td><td>Phase 2</td></tr>
+<tr><td>8</td><td>Recordings stored as base64 text in table rows; the notes list selects <code>*</code> and so downloads every drawing data URL.</td><td><code>saveNote</code>, <code>loadNotes</code></td><td>Phase 2</td></tr>
+<tr><td>9</td><td>Previous/Next stop at the first and last chapter of a book.</td><td><code>ReaderContent</code></td><td>Phase 3</td></tr>
+<tr><td>10</td><td>Verse of the day is seven hardcoded KJV strings chosen by weekday, shown in KJV even when ASV is active.</td><td><code>DAILY</code></td><td>Phase 5</td></tr>
+<tr><td>11</td><td>Deleting a note or recording is immediate, with no confirm or undo.</td><td><code>deleteNote</code>, <code>deleteRecording</code></td><td>Phase 2</td></tr>
+<tr><td>12</td><td>Accessibility: nav items, picker chips and suggestion chips are clickable <code>div</code>/<code>i</code> elements with no keyboard access; muted text <code>#9b948a</code> on <code>#faf9f6</code> is below 4.5:1; several labels are 9 to 10px; <code>alert()</code> is used for errors.</td><td>throughout</td><td>Phase 2</td></tr>
+<tr><td>13</td><td>Manifest name, colours and portrait lock are stale; icons and fonts load from CDNs.</td><td><code>vite.config.js</code>, <code>index.html</code></td><td>Phase 2</td></tr>
+<tr><td>14</td><td>Preferences are one global singleton row; last write wins across devices.</td><td><code>PREFS_ID</code></td><td>Phase 1</td></tr>
+<tr><td>15</td><td>Debug <code>console.log</code> calls throughout the recording code.</td><td>recording functions</td><td>Phase 2</td></tr>
+</table></div>
+</div>
+
+<h2 class="doc" id="tokens">4 · Design tokens</h2>
+<div class="doc">
+<p>These are the values already in <code>THEMES</code> in <code>TheBibleStudyApp.jsx</code>, plus the additions this upgrade needs. Move them to CSS custom properties on a <code>data-theme</code> attribute and stop passing a <code>T</code> object through props.</p>
+<div class="tablewrap"><table class="doc">
+<tr><th>Token</th><th>Light</th><th>Dark</th><th>Sepia</th><th>Use</th></tr>
+<tr><td>bg</td><td><span class="sw" style="background:#faf9f6"></span>#faf9f6</td><td><span class="sw" style="background:#141210"></span>#141210</td><td><span class="sw" style="background:#f5efdc"></span>#f5efdc</td><td>page ground</td></tr>
+<tr><td>surface</td><td><span class="sw" style="background:#ffffff"></span>#ffffff</td><td><span class="sw" style="background:#1c1917"></span>#1c1917</td><td><span class="sw" style="background:#fbf6ea"></span>#fbf6ea</td><td>cards, sheets</td></tr>
+<tr><td>surface2</td><td><span class="sw" style="background:#f1eee7"></span>#f1eee7</td><td><span class="sw" style="background:#211d1a"></span>#211d1a</td><td><span class="sw" style="background:#ede4cc"></span>#ede4cc</td><td>inputs, quiet panels</td></tr>
+<tr><td>text / heading</td><td><span class="sw" style="background:#181614"></span>#181614</td><td><span class="sw" style="background:#e6e1d8"></span>#e6e1d8 / #f2ede3</td><td><span class="sw" style="background:#3b2d1e"></span>#3b2d1e / #2c2013</td><td>UI text, display type</td></tr>
+<tr><td>scripture</td><td><span class="sw" style="background:#26221e"></span>#26221e</td><td><span class="sw" style="background:#d9d3c8"></span>#d9d3c8</td><td><span class="sw" style="background:#463522"></span>#463522</td><td>verse text</td></tr>
+<tr><td>muted (text) <b>changed</b></td><td><span class="sw" style="background:#6b655c"></span>#6b655c</td><td><span class="sw" style="background:#a39c90"></span>#a39c90</td><td><span class="sw" style="background:#6f5a40"></span>#6f5a40</td><td>secondary text. Replaces #9b948a / #6f6a62 / #8b7355, which fail contrast. Confirm each is ≥ 4.5:1 on bg and surface.</td></tr>
+<tr><td>border</td><td><span class="sw" style="background:#e2ded6"></span>#e2ded6</td><td><span class="sw" style="background:#2b2723"></span>#2b2723</td><td><span class="sw" style="background:#e0d5b8"></span>#e0d5b8</td><td>hairlines. Use #b5ad9f (light) / #3a352f (dark) where a border is the only thing marking a control.</td></tr>
+<tr><td>header / headerText</td><td>#181614 / #faf9f6</td><td>#e6e1d8 / #141210</td><td>#2c2013 / #f5efdc</td><td>solid ink buttons and chips</td></tr>
+<tr><td>accent</td><td><span class="sw" style="background:#8a2318"></span>#8a2318</td><td><span class="sw" style="background:#d06a52"></span>#d06a52</td><td><span class="sw" style="background:#8a2318"></span>#8a2318</td><td>primary action, eyebrows, verse numbers</td></tr>
+<tr><td>accentSoft / accentBorder</td><td>rgba(138,35,24,.07) / .28</td><td>rgba(208,106,82,.09) / .32</td><td>rgba(138,35,24,.07) / .28</td><td>selected chips</td></tr>
+</table></div>
+<h4>Highlight colours (new)</h4>
+<div class="tablewrap"><table class="doc">
+<tr><th>Name (stored value)</th><th>Verse background, light</th><th>Swatch button</th><th>Notes</th></tr>
+<tr><td>gold</td><td><span class="sw" style="background:#f3ead9"></span>#f3ead9</td><td><span class="sw" style="background:#ecd9ae"></span>#ecd9ae</td><td rowspan="4">Existing rows already store <code>"gold"</code>. Derive dark and sepia verse backgrounds for each (dark gold is the existing <code>#2e2419</code>); keep scripture text ≥ 4.5:1 on every one.</td></tr>
+<tr><td>rose</td><td><span class="sw" style="background:#f6dcd6"></span>#f6dcd6</td><td><span class="sw" style="background:#efc4ba"></span>#efc4ba</td></tr>
+<tr><td>sage</td><td><span class="sw" style="background:#dfe8d6"></span>#dfe8d6</td><td><span class="sw" style="background:#c5d6b4"></span>#c5d6b4</td></tr>
+<tr><td>sky</td><td><span class="sw" style="background:#dbe6f0"></span>#dbe6f0</td><td><span class="sw" style="background:#b9cfe2"></span>#b9cfe2</td></tr>
+</table></div>
+<h4>Type and shape</h4>
+<ul>
+<li>Display: <code>'Instrument Serif', Georgia, serif</code>, weight 400, tight leading (.88 to 1.05), letter-spacing −.02em at large sizes.</li>
+<li>UI: <code>'Archivo', system-ui, sans-serif</code>, 400/500/600/700. Eyebrow: 10px, 700, uppercase, letter-spacing .24 to .26em. No UI text below 10px.</li>
+<li>Scripture: <code>'Source Serif 4', Georgia, serif</code>, user font size (12 to 28px, default 17), line-height 1.8.</li>
+<li>Corners square (radius 0 to 2px) everywhere; remove the leftover 8 to 16px radii. Sheets have a 2px accent top border. No gradients, no emoji as icons.</li>
+<li>Touch targets at least 44×44px. Icons: inline stroke SVG at 1.75 stroke width, or <code>@tabler/icons-react</code>, bundled.</li>
+<li>Breakpoints stay: phone &lt; 640, tablet 640 to 1023, desktop ≥ 1024; the study panel appears at ≥ 1280.</li>
+</ul>
+</div>
+
+<h2 class="doc" id="phases">5 · Build phases</h2>
+<div class="doc">
+
+<div class="phase"><h3>Phase 1 · Lock down</h3><p class="meta">Blocks everything else</p>
+<ul>
+<li>Add Supabase Auth and a sign-in screen (method: see section 10). Gate the whole app behind a session.</li>
+<li>Add <code>user_id</code> to the four existing tables, backfill existing rows to the owner's user id after first sign-in, then replace every "Allow all" policy with owner-only policies for the <code>authenticated</code> role (SQL in section 6).</li>
+<li>Preferences become one row per user, keyed by <code>user_id</code>; remove <code>PREFS_ID</code>.</li>
+<li>Create a Supabase Edge Function <code>scholar</code> that verifies the caller's JWT, holds <code>ANTHROPIC_API_KEY</code> as a function secret, takes the model id from a function environment variable, and streams the reply. Route all AI calls through it. Remove the API-key field, <code>bsa_api_key</code>, and every direct call to <code>api.anthropic.com</code>.</li>
+<li>Electron: remove <code>.env</code> from <code>build.files</code>, delete the <code>ask-scholar</code> handler and the <code>dotenv</code> dependency; the desktop app uses the same Edge Function.</li>
+<li>Replace <code>supabase/migrations.sql</code> with timestamped files under <code>supabase/migrations/</code> that reproduce the live schema, including the four preference columns the old file lacks.</li>
+</ul>
+<h4>Accept when</h4>
+<ul><li>A request with only the anon key returns no rows from, and cannot write to, any of this app's tables.</li><li>A second test account cannot see the first account's notes or highlights.</li><li>Existing notes and highlights are still there for the owner.</li><li>Ask AI works on a fresh browser with no key entered; the built bundle and the Electron package contain no Anthropic key.</li><li>No <code>para_*</code> table or policy changed.</li></ul></div>
+
+<div class="phase"><h3>Phase 2 · Foundations: structure, offline, storage</h3><p class="meta">Makes the rest cheap to build</p>
+<ul>
+<li>Split the single component into feature folders (<code>src/features/reader</code>, <code>notes</code>, <code>ask</code>, <code>search</code>, <code>today</code>, <code>settings</code>…), shared <code>components</code>, <code>hooks</code> and <code>lib</code>. Theme via CSS variables. Delete <code>App.jsx</code>, <code>App.css</code> and unused assets. Add a router so screens have URLs (for example <code>/read/john/3</code>).</li>
+<li>Local Bible store: serve <code>kjv.json</code> from <code>public/</code> (or split per book), load it once, keep it in IndexedDB, and read chapters from there. File shape: <code>{books:[{name, abbrev, chapters:[{chapter:"1", verses:[{verse:"1", text}]}]}]}</code>; chapter and verse numbers are strings.</li>
+<li>KJV text markup: braces mark translator-supplied words, <code>{it is}</code>, in 17,366 verses; a brace group containing a colon is a margin note, <code>{reproved: or, discovered}</code>, in 6,687 verses. Render supplied words in italics; strip margin notes from the verse and from search (optionally expose them as a footnote).</li>
+<li>ASV: add a public-domain ASV file in the same shape so it is offline too. Until then, fetch from <code>bible-api.com</code> and cache each chapter in IndexedDB.</li>
+<li>Offline writes: an IndexedDB outbox for notes, highlights and later tables; apply optimistically, sync when online, show the sync state in the header.</li>
+<li>Storage: private buckets for recordings, drawings and photos under a per-user path, with matching storage policies; migrate existing drawings; make "Snap Photo" a real capture (<code>&lt;input type="file" accept="image/*" capture&gt;</code>). The notes list selects only the columns it shows.</li>
+<li>PWA: correct name and colours, remove the orientation lock, bundle fonts and icons, add Workbox runtime caching.</li>
+<li>Accessibility pass (defect 12), delete with undo toast (defect 11), remove debug logging.</li>
+</ul>
+<h4>Accept when</h4>
+<ul><li>With the network off after one visit, the installed app opens, reads any KJV chapter, and a highlight or note made offline appears on another device after reconnecting.</li><li>Every interactive element is reachable and operable by keyboard; no <code>alert()</code> remains.</li><li>Initial JS bundle does not include the Bible text.</li></ul></div>
+
+<div class="phase"><h3>Phase 3 · Reader</h3><p class="meta">Screens A1 and A2</p>
+<ul><li>Verse selection, multi-verse ranges, toolbar and sheet, four highlight colours, chapter and verse bookmarks, notes linked to a verse range with margin markers, cross-book Previous/Next, keyboard and swipe, compare view, read aloud.</li></ul>
+<h4>Accept when</h4>
+<ul><li>Selecting a verse writes nothing until a colour or action is chosen.</li><li>Existing gold highlights still display.</li><li>A note created from a verse shows a marker on that verse and opens from it.</li><li>Next from John 21 opens Acts 1.</li></ul></div>
+
+<div class="phase"><h3>Phase 4 · Search</h3><p class="meta">Screen A4</p>
+<ul><li>Offline full-text search in a worker, reference detection, notes and dictionary scopes, testament filter with counts.</li></ul>
+<h4>Accept when</h4>
+<ul><li>"grace" in KJV returns 159 verses (37 Old, 122 New; Romans 20).</li><li>Typing "rom 8:28" offers a jump to Romans 8:28.</li><li>Search works with the network off.</li></ul></div>
+
+<div class="phase"><h3>Phase 5 · Today, plans, Bible map, memory</h3><p class="meta">Screens A3, B1, B5</p>
+<ul><li>Today tab and new nav order; reading progress; plan definitions as JSON in the repo (start with the Gospel of John in 21 days, the New Testament in 90 days, the whole Bible in a year) plus user-built plans; the chapter map; the memory trainer and its review schedule; date-based verse of the day.</li></ul>
+<h4>Accept when</h4>
+<ul><li>Marking a chapter read fills its square on the map and advances the plan.</li><li>The map totals equal the row count in <code>reading_progress</code>.</li><li>A verse rated "Got it" is next due three days later.</li></ul></div>
+
+<div class="phase"><h3>Phase 6 · Study panel and AI in context</h3><p class="meta">Right panel of A1</p>
+<ul>
+<li>Cross-references and Strong's data as static JSON loaded on demand and cached. Use public-domain sources (Treasury of Scripture Knowledge; Strong's-tagged KJV and Strong's lexicon); record the source and licence of each file in the repo before bundling it.</li>
+<li>Ask AI receives the selected verses and the surrounding chapter as context, streams its answer, renders markdown, and can save an answer as a note. Conversations persist (<code>ai_threads</code>, <code>ai_messages</code>).</li>
+</ul>
+<h4>Accept when</h4>
+<ul><li>Selecting John 3:16 lists cross-references with verse text, and tapping one navigates there.</li><li>An AI answer about a selected verse quotes that verse from the active translation.</li></ul></div>
+
+<div class="phase"><h3>Phase 7 · Sermon mode</h3><p class="meta">Screen B2</p>
+<h4>Accept when</h4>
+<ul><li>A full session recorded in airplane mode survives an app restart and syncs afterwards.</li><li>Tapping a pin's time seeks playback to within a second of that moment.</li></ul></div>
+
+<div class="phase"><h3>Phase 8 · Verse card studio</h3><p class="meta">Screen B3</p>
+<h4>Accept when</h4>
+<ul><li>Exported PNGs are exactly 1080×1080, 1080×1920 and 1280×720 and use Instrument Serif.</li><li>Share opens the system share sheet on iOS Safari and Android Chrome.</li></ul></div>
+
+<div class="phase"><h3>Phase 9 · Threads</h3><p class="meta">Screen B4</p>
+<h4>Accept when</h4>
+<ul><li>A thread can be created, reordered by keyboard, and exported to a note.</li><li>An AI suggestion with an invalid reference is never shown.</li></ul></div>
+
+<div class="phase"><h3>Phase 10 · Family table</h3><p class="meta">Screen B6 · needs Phase 1 and Phase 5</p>
+<h4>Accept when</h4>
+<ul><li>Two accounts in one household see the same questions and each other's read status, and neither can read the other's notes.</li></ul></div>
+
+</div>
+
+<h2 class="doc" id="data">6 · Data model</h2>
+<div class="doc">
+<p>Existing tables gain an owner; new tables follow the same pattern. Every table has row level security enabled with an owner-only policy unless noted. Treat this as a sketch: check live constraint names before altering, and write each step as its own migration.</p>
+<pre><code>-- Phase 1: ownership on existing tables (repeat for highlights, preferences, recordings)
+alter table notes add column user_id uuid references auth.users(id) default auth.uid();
+-- after the owner has signed in once:
+--   update notes set user_id = '&lt;owner uid&gt;' where user_id is null;
+--   alter table notes alter column user_id set not null;
+
+drop policy "Allow all" on notes;
+create policy "owner" on notes for all to authenticated
+  using (user_id = (select auth.uid()))
+  with check (user_id = (select auth.uid()));
+
+-- highlights: uniqueness becomes per user (check the existing constraint's real name first)
+alter table highlights drop constraint highlights_book_chapter_verse_key;
+alter table highlights add constraint highlights_user_verse_key unique (user_id, book, chapter, verse);
+
+-- preferences: one row per user, plus the columns the old migration file is missing
+alter table preferences add constraint preferences_user_key unique (user_id);
+alter table preferences
+  add column if not exists translation text default 'KJV',
+  add column if not exists chapter_panel_collapsed boolean default false,
+  add column if not exists current_book text,
+  add column if not exists current_chapter integer,
+  add column if not exists current_verse integer,
+  add column if not exists share_handle text;
+
+-- Phase 2: media moves to Storage
+alter table recordings add column storage_path text;   -- audio_data becomes nullable, then unused
+alter table notes add column drawing_path text, add column photo_path text;
+
+-- Phase 3: notes link to verses; bookmarks
+alter table notes add column book text, add column chapter integer,
+  add column verse_start integer, add column verse_end integer, add column updated_at timestamptz default now();
+create table bookmarks (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  book text not null, chapter integer not null, verse integer,          -- verse null = whole chapter
+  created_at timestamptz not null default now(),
+  unique (user_id, book, chapter, verse)
+);
+
+-- Phase 5: progress, plans, memory
+create table reading_progress (
+  user_id uuid not null default auth.uid() references auth.users(id),
+  book text not null, chapter integer not null,
+  read_at timestamptz not null default now(),
+  primary key (user_id, book, chapter)
+);
+create table user_plans (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  household_id uuid,                                   -- set in Phase 10 for a shared plan
+  plan_key text not null,                              -- id of a JSON plan in the repo, or 'custom'
+  custom_readings jsonb,                               -- [[{book,chapter}, ...] per day] when custom
+  started_on date not null default current_date,
+  active boolean not null default true
+);
+create table memory_verses (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  book text not null, chapter integer not null, verse_start integer not null, verse_end integer not null,
+  translation text not null,
+  interval_days integer not null default 0,
+  due_at timestamptz not null default now(),
+  last_result text,                                    -- 'shaky' | 'got_it' | 'by_heart'
+  created_at timestamptz not null default now()
+);
+
+-- Phase 6: saved AI conversations
+create table ai_threads  (id uuid primary key default gen_random_uuid(), user_id uuid not null default auth.uid() references auth.users(id),
+                          title text, context_ref text, created_at timestamptz not null default now());
+create table ai_messages (id uuid primary key default gen_random_uuid(), thread_id uuid not null references ai_threads(id) on delete cascade,
+                          user_id uuid not null default auth.uid() references auth.users(id),
+                          role text not null, content text not null, created_at timestamptz not null default now());
+
+-- Phase 7: sermon mode
+create table sermon_sessions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null default auth.uid() references auth.users(id),
+  title text, started_at timestamptz not null default now(), duration_seconds integer,
+  audio_path text, mime_type text, note_id uuid references notes(id) on delete set null
+);
+create table sermon_pins (
+  id uuid primary key default gen_random_uuid(),
+  session_id uuid not null references sermon_sessions(id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users(id),
+  offset_seconds integer not null,
+  kind text not null,                                  -- 'ref' | 'note' | 'mark'
+  book text, chapter integer, verse_start integer, verse_end integer, body text
+);
+
+-- Phase 9: threads
+create table threads (id uuid primary key default gen_random_uuid(), user_id uuid not null default auth.uid() references auth.users(id),
+                      title text not null, created_at timestamptz not null default now());
+create table thread_links (
+  id uuid primary key default gen_random_uuid(),
+  thread_id uuid not null references threads(id) on delete cascade,
+  user_id uuid not null default auth.uid() references auth.users(id),
+  position integer not null, label text,
+  book text not null, chapter integer not null, verse_start integer not null, verse_end integer not null
+);
+
+-- Phase 10: households (policies are by membership, not ownership)
+create table households (id uuid primary key default gen_random_uuid(), name text not null, created_by uuid not null default auth.uid() references auth.users(id));
+create table household_members (household_id uuid not null references households(id) on delete cascade,
+                                user_id uuid not null references auth.users(id), display_name text not null,
+                                role text not null default 'member', primary key (household_id, user_id));
+create table household_questions (household_id uuid not null references households(id) on delete cascade,
+                                  passage text not null, day date not null, questions jsonb not null,
+                                  primary key (household_id, passage, day));
+-- Members may read reading_progress rows of others in the same household for the shared plan's chapters only.
+-- Write membership checks as a SECURITY DEFINER helper with a fixed search_path to avoid recursive policies.</code></pre>
+<p>Book names in every table use the exact strings in the <code>BOOKS</code> constant ("Psalms", "Song of Solomon", "1 Samuel"…), as the existing highlight rows do.</p>
+</div>
+
+<h2 class="doc" id="screens-a">7 · Core screens</h2>
+<p class="doc">Rebuilds of what the app already does, with the gaps closed.</p>
+<section class="doc screen" id="s-Main">
+<h3 class="doc">A1 · Reader with study panel (desktop, 1440 wide)</h3>
+<div class="doc spec cols"><div><h4>Behaviour</h4><ul>
+<li>Tapping a verse <b>selects</b> it (ink outline, white fill). It must not write a highlight. Tapping more verses extends the selection; tapping a selected verse deselects it.</li>
+<li>Selection shows the inline toolbar (desktop/tablet) or the bottom sheet A2 (phone): four highlight colours, Add note, Ask AI, Copy, Share as image, Memorize. Choosing the colour a verse already has removes the highlight.</li>
+<li>Verses with a note show a "1 note" marker at the right edge; it opens that note.</li>
+<li>Header: book and chapter pickers (existing), translation menu, "Compare with ASV" (two synced columns, verse-aligned), bookmark toggle for the chapter, and an offline/sync status line.</li>
+<li>Previous/Next must cross book boundaries (John 21 → Acts 1). Add ←/→ keys on desktop and swipe on touch.</li>
+</ul></div>
+<div><h4>Left panel</h4><ul>
+<li>Existing chapter title block, then the active reading plan (name, progress bar, "Mark chapter read"), then counts of highlights, notes and memory verses in this chapter. Collapsible, as today.</li>
+<li>"Mark chapter read" writes <code>reading_progress</code> and advances the plan if the chapter is today's reading.</li>
+</ul>
+<h4>Study panel (right, desktop ≥ 1280px; a sheet tab elsewhere)</h4><ul>
+<li>Follows the selected verse. Sections: cross-references (reference + verse text, tap to navigate), words in this verse (English word, original word, transliteration, Strong's number; tap for the lexicon entry), and "Ask about this verse in context".</li>
+<li>Needs the Phase 6 datasets. Until they are loaded, hide the two data sections rather than showing empty ones.</li>
+</ul></div>
+</div>
+<div class="frame wide" data-mock="Main"><div style="min-width: 1280px"><div style="display: flex; flex-wrap: wrap; min-height: 900px; background: #faf9f6; color: #181614; font-family: 'Archivo', system-ui, sans-serif; box-sizing: border-box">
+
+<nav aria-label="Sections" style="flex: 0 0 64px; display: flex; flex-direction: column; align-items: center; gap: 22px; padding: 20px 0 22px; border-right: 1px solid #e2ded6; box-sizing: border-box">
+<div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 26px; line-height: 1; color: #8a2318">B.</div>
+<div style="flex-grow: 1; writing-mode: vertical-rl; display: flex; align-items: center; font-size: 10px; letter-spacing: .28em; text-transform: uppercase; font-weight: 600; color: #6b655c; white-space: nowrap">The Bible Study App — KJV 1611</div>
+<div style="display: flex; flex-direction: column; gap: 4px; align-items: center">
+<button aria-label="Today" style="width: 44px; height: 44px; background: none; border: none; color: #6b655c; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg></button>
+<button aria-label="Read" aria-current="page" style="width: 44px; height: 44px; background: rgba(138,35,24,.07); border: none; color: #8a2318; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V5a2 2 0 0 1 2-2h14v14H6a2 2 0 0 0 0 4h14"></path></svg></button>
+<button aria-label="Notes" style="width: 44px; height: 44px; background: none; border: none; color: #6b655c; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="1"></rect><path d="M9 8h6M9 12h6M9 16h3"></path></svg></button>
+<button aria-label="Ask AI" style="width: 44px; height: 44px; background: none; border: none; color: #6b655c; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path></svg></button>
+<button aria-label="Search" style="width: 44px; height: 44px; background: none; border: none; color: #6b655c; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg></button>
+<button aria-label="Preferences" style="width: 44px; height: 44px; background: none; border: none; color: #6b655c; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"></path><circle cx="16" cy="7" r="2"></circle><circle cx="8" cy="17" r="2"></circle></svg></button>
+</div>
+</nav>
+
+<div style="flex: 999 1 560px; min-width: 0; display: flex; flex-direction: column">
+
+<header style="display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 32px; border-bottom: 1px solid #e2ded6">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 600; color: #6b655c">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M8 12l3 3 5-6"></path></svg>
+<span>Whole Bible saved on this device · synced just now</span>
+</div>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 10px">
+<button style="height: 44px; padding: 0 14px; background: transparent; border: 1.5px solid #181614; color: #181614; font-family: inherit; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; gap: 6px">John<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+<button style="height: 44px; padding: 0 14px; background: transparent; border: 1.5px solid #181614; color: #181614; font-family: inherit; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; gap: 6px">Ch. 3<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+<button style="height: 44px; padding: 0 14px; background: #181614; border: none; color: #faf9f6; font-family: inherit; font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; gap: 6px">KJV<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+<button style="height: 44px; padding: 0 14px; background: transparent; border: 1px solid #e2ded6; color: #181614; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 7px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="1"></rect><path d="M12 4v16"></path></svg>Compare with ASV</button>
+<button aria-label="Bookmark this chapter" style="width: 44px; height: 44px; background: transparent; border: 1px solid #e2ded6; color: #181614; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h10v18l-5-4-5 4z"></path></svg></button>
+</div>
+</header>
+
+<div style="flex-grow: 1; display: flex; flex-wrap: wrap">
+
+<aside style="flex: 0 0 280px; box-sizing: border-box; padding: 36px 24px 28px 32px; border-right: 1px solid #e2ded6; display: flex; flex-direction: column; gap: 26px">
+<div>
+<div style="font-size: 10px; letter-spacing: .26em; text-transform: uppercase; font-weight: 700; color: #8a2318; margin-bottom: 14px">Chapter Three</div>
+<div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 104px; line-height: .88; letter-spacing: -.02em">John<br>3</div>
+</div>
+<section style="border-top: 1px solid #e2ded6; padding-top: 16px; display: flex; flex-direction: column; gap: 10px">
+<div style="font-size: 10px; letter-spacing: .24em; text-transform: uppercase; font-weight: 600; color: #6b655c">Reading plan</div>
+<div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 22px; line-height: 1.2">The Gospel of John in 21 days</div>
+<div style="height: 6px; background: #e2ded6" role="img" aria-label="Day 3 of 21"><div style="width: 14%; height: 6px; background: #8a2318"></div></div>
+<div style="font-size: 12px; color: #6b655c">Day 3 of 21 · today's reading</div>
+<button style="height: 44px; background: #8a2318; border: none; color: #ffffff; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg>Mark chapter read</button>
+</section>
+<section style="border-top: 1px solid #e2ded6; padding-top: 16px; display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 10px; letter-spacing: .24em; text-transform: uppercase; font-weight: 600; color: #6b655c">In this chapter</div>
+<div style="display: flex; justify-content: space-between; font-size: 13px"><span>Highlights</span><span style="font-weight: 600">3</span></div>
+<div style="display: flex; justify-content: space-between; font-size: 13px"><span>Notes</span><span style="font-weight: 600">1</span></div>
+<div style="display: flex; justify-content: space-between; font-size: 13px"><span>Memory verses</span><span style="font-weight: 600">1</span></div>
+</section>
+</aside>
+
+<main style="flex: 999 1 420px; min-width: 0; box-sizing: border-box; padding: 36px 48px 32px">
+
+<div style="display: flex; gap: 12px; align-items: flex-start; margin-bottom: 18px; background: #f3ead9; box-shadow: 0 0 0 6px #f3ead9">
+<p style="margin: 0; flex-grow: 1"><span style="font-size: 10px; font-weight: 700; color: #8a2318; margin-right: 8px; vertical-align: top">14</span><span style="font-family: 'Source Serif 4', Georgia, serif; font-size: 17px; line-height: 1.8; color: #26221e">And as Moses lifted up the serpent in the wilderness, even so must the Son of man be lifted up:</span></p>
+<button style="flex-shrink: 0; height: 30px; padding: 0 10px; margin-top: 2px; background: #ffffff; border: 1px solid rgba(138,35,24,.4); color: #8a2318; font-family: inherit; font-size: 11px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 5px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="1"></rect><path d="M9 8h6M9 12h6M9 16h3"></path></svg>1 note</button>
+</div>
+
+<p style="margin: 0 0 18px"><span style="font-size: 10px; font-weight: 700; color: #8a2318; margin-right: 8px; vertical-align: top">15</span><span style="font-family: 'Source Serif 4', Georgia, serif; font-size: 17px; line-height: 1.8; color: #26221e">That whosoever believeth in him should not perish, but have eternal life.</span></p>
+
+<div style="margin: 0 -14px 20px; padding: 12px 14px 14px; background: #ffffff; border: 1.5px solid #181614; display: flex; flex-direction: column; gap: 12px">
+<p style="margin: 0"><span style="font-size: 10px; font-weight: 700; color: #8a2318; margin-right: 8px; vertical-align: top">16</span><span style="font-family: 'Source Serif 4', Georgia, serif; font-size: 17px; line-height: 1.8; color: #26221e">For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.</span></p>
+<div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+<div style="display: flex; gap: 6px" role="group" aria-label="Highlight color">
+<button aria-label="Highlight gold" style="width: 32px; height: 32px; background: #ecd9ae; border: 1px solid #181614; cursor: pointer"></button>
+<button aria-label="Highlight rose" style="width: 32px; height: 32px; background: #efc4ba; border: 1px solid #181614; cursor: pointer"></button>
+<button aria-label="Highlight sage" style="width: 32px; height: 32px; background: #c5d6b4; border: 1px solid #181614; cursor: pointer"></button>
+<button aria-label="Highlight sky" style="width: 32px; height: 32px; background: #b9cfe2; border: 1px solid #181614; cursor: pointer"></button>
+</div>
+<div style="width: 1px; height: 24px; background: #e2ded6"></div>
+<button style="height: 32px; padding: 0 11px; background: #181614; border: none; color: #faf9f6; font-family: inherit; font-size: 11px; font-weight: 600; cursor: pointer">Add note</button>
+<button style="height: 32px; padding: 0 11px; background: #181614; border: none; color: #faf9f6; font-family: inherit; font-size: 11px; font-weight: 600; cursor: pointer">Ask AI</button>
+<button style="height: 32px; padding: 0 11px; background: #181614; border: none; color: #faf9f6; font-family: inherit; font-size: 11px; font-weight: 600; cursor: pointer">Copy</button>
+<button style="height: 32px; padding: 0 11px; background: #181614; border: none; color: #faf9f6; font-family: inherit; font-size: 11px; font-weight: 600; cursor: pointer">Share as image</button>
+<button style="height: 32px; padding: 0 11px; background: #181614; border: none; color: #faf9f6; font-family: inherit; font-size: 11px; font-weight: 600; cursor: pointer">Memorize</button>
+</div>
+</div>
+
+<p style="margin: 0 0 18px; background: #dfe8d6; box-shadow: 0 0 0 6px #dfe8d6"><span style="font-size: 10px; font-weight: 700; color: #8a2318; margin-right: 8px; vertical-align: top">17</span><span style="font-family: 'Source Serif 4', Georgia, serif; font-size: 17px; line-height: 1.8; color: #26221e">For God sent not his Son into the world to condemn the world; but that the world through him might be saved.</span></p>
+
+<p style="margin: 0 0 18px"><span style="font-size: 10px; font-weight: 700; color: #8a2318; margin-right: 8px; vertical-align: top">18</span><span style="font-family: 'Source Serif 4', Georgia, serif; font-size: 17px; line-height: 1.8; color: #26221e">He that believeth on him is not condemned: but he that believeth not is condemned already, because he hath not believed in the name of the only begotten Son of God.</span></p>
+
+<p style="margin: 0 0 18px; background: #dbe6f0; box-shadow: 0 0 0 6px #dbe6f0"><span style="font-size: 10px; font-weight: 700; color: #8a2318; margin-right: 8px; vertical-align: top">19</span><span style="font-family: 'Source Serif 4', Georgia, serif; font-size: 17px; line-height: 1.8; color: #26221e">And this is the condemnation, that light is come into the world, and men loved darkness rather than light, because their deeds were evil.</span></p>
+
+<p style="margin: 0 0 18px"><span style="font-size: 10px; font-weight: 700; color: #8a2318; margin-right: 8px; vertical-align: top">20</span><span style="font-family: 'Source Serif 4', Georgia, serif; font-size: 17px; line-height: 1.8; color: #26221e">For every one that doeth evil hateth the light, neither cometh to the light, lest his deeds should be reproved.</span></p>
+
+<p style="margin: 0"><span style="font-size: 10px; font-weight: 700; color: #8a2318; margin-right: 8px; vertical-align: top">21</span><span style="font-family: 'Source Serif 4', Georgia, serif; font-size: 17px; line-height: 1.8; color: #26221e">But he that doeth truth cometh to the light, that his deeds may be made manifest, that they are wrought in God.</span></p>
+
+</main>
+
+<aside aria-label="Study panel" style="flex: 1 1 320px; max-width: 360px; box-sizing: border-box; padding: 28px 24px; border-left: 1px solid #e2ded6; background: #ffffff; display: flex; flex-direction: column; gap: 18px">
+<div>
+<div style="font-size: 10px; letter-spacing: .26em; text-transform: uppercase; font-weight: 700; color: #8a2318; margin-bottom: 8px">Study</div>
+<div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 30px; line-height: 1">John 3:16</div>
+</div>
+
+<section style="display: flex; flex-direction: column; gap: 10px">
+<div style="font-size: 10px; letter-spacing: .24em; text-transform: uppercase; font-weight: 600; color: #6b655c">Cross-references</div>
+<a href="#" style="display: block; text-decoration: none; border: 1px solid #e2ded6; padding: 10px 12px"><span style="display: block; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 4px">Romans 5:8</span><span style="display: block; font-family: 'Source Serif 4', Georgia, serif; font-size: 13.5px; line-height: 1.6; color: #26221e">But God commendeth his love toward us, in that, while we were yet sinners, Christ died for us.</span></a>
+<a href="#" style="display: block; text-decoration: none; border: 1px solid #e2ded6; padding: 10px 12px"><span style="display: block; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 4px">1 John 4:9</span><span style="display: block; font-family: 'Source Serif 4', Georgia, serif; font-size: 13.5px; line-height: 1.6; color: #26221e">In this was manifested the love of God toward us, because that God sent his only begotten Son into the world, that we might live through him.</span></a>
+<a href="#" style="display: block; text-decoration: none; border: 1px solid #e2ded6; padding: 10px 12px"><span style="display: block; font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; margin-bottom: 4px">Romans 8:32</span><span style="display: block; font-family: 'Source Serif 4', Georgia, serif; font-size: 13.5px; line-height: 1.6; color: #26221e">He that spared not his own Son, but delivered him up for us all, how shall he not with him also freely give us all things?</span></a>
+</section>
+
+<section style="display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 10px; letter-spacing: .24em; text-transform: uppercase; font-weight: 600; color: #6b655c">Words in this verse</div>
+<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px; border-bottom: 1px solid #e2ded6; padding-bottom: 8px"><span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 18px; color: #8a2318">loved</span><span style="font-size: 12px; color: #6b655c; text-align: right">ἠγάπησεν · agapaō · G25</span></div>
+<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px; border-bottom: 1px solid #e2ded6; padding-bottom: 8px"><span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 18px; color: #8a2318">only begotten</span><span style="font-size: 12px; color: #6b655c; text-align: right">μονογενῆ · monogenēs · G3439</span></div>
+<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px"><span style="font-family: 'Instrument Serif', Georgia, serif; font-size: 18px; color: #8a2318">everlasting</span><span style="font-size: 12px; color: #6b655c; text-align: right">αἰώνιον · aiōnios · G166</span></div>
+</section>
+
+<button style="margin-top: auto; height: 44px; background: transparent; border: 1.5px solid #181614; color: #181614; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 7px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path></svg>Ask about this verse in context</button>
+</aside>
+
+</div>
+</div>
+</div></div></div>
+</section>
+<section class="doc screen" id="s-VerseSheet">
+<h3 class="doc">A2 · Verse actions sheet (phone)</h3>
+<div class="pair"><div class="frame phone" data-mock="VerseSheet"><div style="width: 390px; height: 844px; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; background: #faf9f6; color: #181614; font-family: 'Archivo', system-ui, sans-serif">
+
+<header style="display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 16px; border-bottom: 1px solid #e2ded6">
+<div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 24px; line-height: 1; color: #8a2318">B.</div>
+<div style="display: flex; gap: 8px">
+<button style="height: 44px; padding: 0 12px; background: transparent; border: 1.5px solid #181614; color: #181614; font-family: inherit; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; gap: 5px">John<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+<button style="height: 44px; padding: 0 12px; background: transparent; border: 1.5px solid #181614; color: #181614; font-family: inherit; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; gap: 5px">Ch. 3<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+<button style="height: 44px; padding: 0 12px; background: #181614; border: none; color: #faf9f6; font-family: inherit; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; cursor: pointer; display: flex; align-items: center; gap: 5px">KJV<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
+</div>
+</header>
+
+<main style="flex-grow: 1; min-height: 0; overflow: hidden; padding: 18px 16px 0; display: flex; flex-direction: column; gap: 14px">
+<p style="margin: 0"><span style="font-size: 10px; font-weight: 700; color: #8a2318; margin-right: 8px; vertical-align: top">15</span><span style="font-family: 'Source Serif 4', Georgia, serif; font-size: 17px; line-height: 1.8; color: #6b655c">That whosoever believeth in him should not perish, but have eternal life.</span></p>
+<p style="margin: 0 -8px; padding: 10px 12px; background: #ffffff; border: 1.5px solid #181614"><span style="font-size: 10px; font-weight: 700; color: #8a2318; margin-right: 8px; vertical-align: top">16</span><span style="font-family: 'Source Serif 4', Georgia, serif; font-size: 17px; line-height: 1.8; color: #26221e">For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.</span></p>
+<p style="margin: 0"><span style="font-size: 10px; font-weight: 700; color: #8a2318; margin-right: 8px; vertical-align: top">17</span><span style="font-family: 'Source Serif 4', Georgia, serif; font-size: 17px; line-height: 1.8; color: #6b655c">For God sent not his Son into the world to condemn the world; but that the world through him might be saved.</span></p>
+</main>
+
+<section aria-label="Verse actions" style="background: #ffffff; border-top: 2px solid #8a2318; box-shadow: 0 -12px 40px rgba(0,0,0,.14); padding: 14px 16px 18px; display: flex; flex-direction: column; gap: 14px">
+
+<div style="display: flex; align-items: center; justify-content: space-between">
+<div>
+<div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 28px; line-height: 1.05">John 3:16</div>
+<div style="font-size: 11px; font-weight: 600; color: #6b655c; margin-top: 3px">Tap more verses to select a passage</div>
+</div>
+<button aria-label="Close" style="width: 44px; height: 44px; background: none; border: none; color: #181614; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 10px; letter-spacing: .24em; text-transform: uppercase; font-weight: 600; color: #6b655c">Highlight</div>
+<div style="display: flex; gap: 8px" role="group" aria-label="Highlight color">
+<button aria-label="Gold, selected" aria-pressed="true" style="flex: 1 1 0; height: 44px; background: #ecd9ae; border: 2px solid #181614; color: #181614; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></button>
+<button aria-label="Rose" style="flex: 1 1 0; height: 44px; background: #efc4ba; border: 1px solid #b89c95; cursor: pointer"></button>
+<button aria-label="Sage" style="flex: 1 1 0; height: 44px; background: #c5d6b4; border: 1px solid #98a68b; cursor: pointer"></button>
+<button aria-label="Sky" style="flex: 1 1 0; height: 44px; background: #b9cfe2; border: 1px solid #8fa3b5; cursor: pointer"></button>
+<button style="flex: 1 1 0; height: 44px; background: transparent; border: 1px solid #e2ded6; color: #181614; font-family: inherit; font-size: 11px; font-weight: 600; cursor: pointer">None</button>
+</div>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<button style="height: 68px; background: #181614; border: none; color: #faf9f6; font-family: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="1"></rect><path d="M9 8h6M9 12h6M9 16h3"></path></svg>Add note</button>
+<button style="height: 68px; background: #181614; border: none; color: #faf9f6; font-family: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path></svg>Ask AI</button>
+<button style="height: 68px; background: #181614; border: none; color: #faf9f6; font-family: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="1"></rect><path d="M5 15V5a1 1 0 0 1 1-1h10"></path></svg>Copy</button>
+<button style="height: 68px; background: #181614; border: none; color: #faf9f6; font-family: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M8 7l4-4 4 4M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"></path></svg>Share as image</button>
+<button style="height: 68px; background: #181614; border: none; color: #faf9f6; font-family: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3h10v18l-5-4-5 4z"></path></svg>Bookmark</button>
+<button style="height: 68px; background: #181614; border: none; color: #faf9f6; font-family: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12a8 8 0 0 1 14-5l2 2M20 4v5h-5M20 12a8 8 0 0 1-14 5l-2-2M4 20v-5h5"></path></svg>Memorize</button>
+</div>
+
+<button style="min-height: 56px; padding: 8px 12px; background: transparent; border: 1px solid #e2ded6; color: #181614; font-family: inherit; text-align: left; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 10px">
+<span><span style="display: block; font-size: 13px; font-weight: 600">Cross-references and word study</span><span style="display: block; font-size: 12px; color: #6b655c; margin-top: 2px">Romans 5:8 · 1 John 4:9 · Romans 8:32</span></span>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"></path></svg>
+</button>
+
+</section>
+</div></div><div class="doc spec"><h4>Behaviour</h4><ul>
+<li>Phone presentation of the verse toolbar. Opens when at least one verse is selected; closes on the X, on a tap in the scrim, or when the selection is cleared.</li>
+<li>Title shows the selection as a reference: "John 3:16", or "John 3:16–18" for a contiguous range, or "John 3:16, 19" otherwise.</li>
+<li>Highlight row: gold, rose, sage, sky, None. The current colour shows a check mark and a heavier border, not colour alone.</li>
+<li>Actions: Add note (opens the editor with the reference prefilled and linked), Ask AI (opens Ask with the verse text and chapter attached as context), Copy (text, reference, translation), Share as image (opens B3), Bookmark, Memorize (adds to the memory queue, due today).</li>
+<li>Last row opens the study panel content for the selection.</li>
+<li>Every control is a real <code>&lt;button&gt;</code>, at least 44px tall. Focus moves into the sheet on open and returns to the verse on close.</li>
+</ul>
+</div></div>
+</section>
+<section class="doc screen" id="s-Today">
+<h3 class="doc">A3 · Today (phone)</h3>
+<div class="pair"><div class="frame phone" data-mock="Today"><div style="width: 390px; height: 844px; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; background: #faf9f6; color: #181614; font-family: 'Archivo', system-ui, sans-serif">
+
+<header style="display: flex; align-items: flex-end; justify-content: space-between; padding: 22px 16px 14px">
+<div>
+<div style="font-size: 10px; letter-spacing: .26em; text-transform: uppercase; font-weight: 700; color: #8a2318; margin-bottom: 8px">Thursday · November 19</div>
+<h1 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 46px; line-height: .92; letter-spacing: -.02em">Today</h1>
+</div>
+<button aria-label="Preferences" style="width: 44px; height: 44px; background: transparent; border: 1px solid #e2ded6; color: #181614; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"></path><circle cx="16" cy="7" r="2"></circle><circle cx="8" cy="17" r="2"></circle></svg></button>
+</header>
+
+<main style="flex-grow: 1; min-height: 0; overflow: hidden; padding: 0 16px; display: flex; flex-direction: column; gap: 12px">
+
+<section style="background: #181614; color: #faf9f6; padding: 16px; display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<div>
+<div style="font-size: 10px; letter-spacing: .24em; text-transform: uppercase; font-weight: 600; color: #cfc8bb">Continue reading</div>
+<div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 34px; line-height: 1.05; margin-top: 6px">John 3</div>
+<div style="font-size: 12px; color: #cfc8bb; margin-top: 4px">Left off at verse 16 · KJV</div>
+</div>
+<button style="height: 44px; padding: 0 18px; background: #faf9f6; border: none; color: #181614; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer">Resume</button>
+</section>
+
+<section style="background: #ffffff; border: 1px solid #e2ded6; padding: 16px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px">
+<div style="font-size: 10px; letter-spacing: .24em; text-transform: uppercase; font-weight: 600; color: #6b655c">Reading plan</div>
+<div style="font-size: 12px; font-weight: 600">Day 3 of 21</div>
+</div>
+<div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 22px; line-height: 1.15">The Gospel of John in 21 days</div>
+<div style="height: 6px; background: #e2ded6" role="img" aria-label="Day 3 of 21"><div style="width: 14%; height: 6px; background: #8a2318"></div></div>
+<div style="display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px" role="img" aria-label="This week: Tuesday and Wednesday read, today is Thursday">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 5px"><span style="font-size: 10px; font-weight: 600; color: #6b655c">M</span><div style="width: 100%; height: 30px; box-sizing: border-box; border: 1px solid #e2ded6"></div></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 5px"><span style="font-size: 10px; font-weight: 600; color: #6b655c">T</span><div style="width: 100%; height: 30px; background: #8a2318; color: #ffffff; display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></div></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 5px"><span style="font-size: 10px; font-weight: 600; color: #6b655c">W</span><div style="width: 100%; height: 30px; background: #8a2318; color: #ffffff; display: flex; align-items: center; justify-content: center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5 9-10"></path></svg></div></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 5px"><span style="font-size: 10px; font-weight: 700; color: #181614">T</span><div style="width: 100%; height: 30px; box-sizing: border-box; border: 2px solid #181614"></div></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 5px"><span style="font-size: 10px; font-weight: 600; color: #6b655c">F</span><div style="width: 100%; height: 30px; box-sizing: border-box; border: 1px solid #e2ded6"></div></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 5px"><span style="font-size: 10px; font-weight: 600; color: #6b655c">S</span><div style="width: 100%; height: 30px; box-sizing: border-box; border: 1px solid #e2ded6"></div></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 5px"><span style="font-size: 10px; font-weight: 600; color: #6b655c">S</span><div style="width: 100%; height: 30px; box-sizing: border-box; border: 1px solid #e2ded6"></div></div>
+</div>
+</section>
+
+<section style="border-top: 1px solid #e2ded6; padding-top: 14px; display: flex; flex-direction: column; gap: 9px">
+<div style="font-size: 10px; letter-spacing: .24em; text-transform: uppercase; font-weight: 600; color: #6b655c">Verse of the day</div>
+<div style="font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 21px; line-height: 1.3; color: #8a2318">“Trust in the LORD with all thine heart; and lean not unto thine own understanding.”</div>
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 10px">
+<div style="font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase">Proverbs 3:5</div>
+<button style="height: 44px; padding: 0 14px; background: transparent; border: 1.5px solid #181614; color: #181614; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 7px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M8 7l4-4 4 4M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"></path></svg>Share as image</button>
+</div>
+</section>
+
+<section style="background: #f1eee7; padding: 12px 14px; display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<div>
+<div style="font-size: 13.5px; font-weight: 600">2 memory verses due</div>
+<div style="font-size: 12px; color: #5e584f; margin-top: 2px">A two-minute review keeps them fresh</div>
+</div>
+<button style="height: 44px; padding: 0 16px; background: #8a2318; border: none; color: #ffffff; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer">Review</button>
+</section>
+
+</main>
+
+<nav aria-label="Sections" style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid #e2ded6; background: #faf9f6">
+<button aria-current="page" style="height: 64px; background: none; border: none; border-top: 2px solid #8a2318; color: #8a2318; font-family: inherit; font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>Today</button>
+<button style="height: 64px; background: none; border: none; border-top: 2px solid transparent; color: #6b655c; font-family: inherit; font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V5a2 2 0 0 1 2-2h14v14H6a2 2 0 0 0 0 4h14"></path></svg>Read</button>
+<button style="height: 64px; background: none; border: none; border-top: 2px solid transparent; color: #6b655c; font-family: inherit; font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="1"></rect><path d="M9 8h6M9 12h6M9 16h3"></path></svg>Notes</button>
+<button style="height: 64px; background: none; border: none; border-top: 2px solid transparent; color: #6b655c; font-family: inherit; font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path></svg>Ask</button>
+<button style="height: 64px; background: none; border: none; border-top: 2px solid transparent; color: #6b655c; font-family: inherit; font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>Search</button>
+</nav>
+</div></div><div class="doc spec"><h4>Behaviour</h4><ul>
+<li>New first tab and the landing screen. Bottom nav becomes Today, Read, Notes, Ask, Search. Preferences moves to the gear button in this header (and to the rail on desktop).</li>
+<li><b>Continue reading:</b> last position from preferences (book, chapter) plus the last selected or topmost visible verse. Resume opens Read at that verse.</li>
+<li><b>Reading plan:</b> active plan name, day N of M, progress bar, and a week strip. A day is filled with a check mark when that day's reading was marked read, outlined heavy for today, outlined light otherwise. With no active plan, show a "Choose a plan" button instead of the card.</li>
+<li><b>Verse of the day:</b> chosen deterministically from the date out of a curated list of at least 365 references; the text is read from the active translation, never hardcoded. Share as image opens B3.</li>
+<li><b>Memory verses due:</b> count of <code>memory_verses</code> with <code>due_at ≤ now</code>. Hidden when zero. Review opens B5.</li>
+<li>Also link from here to Your Bible (B1), Threads (B4), Sermon mode (B2) and Family table (B6), as a simple list below the fold.</li>
+</ul>
+</div></div>
+</section>
+<section class="doc screen" id="s-Search">
+<h3 class="doc">A4 · Full-text search (phone)</h3>
+<div class="pair"><div class="frame phone" data-mock="Search"><div style="width: 390px; height: 844px; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; background: #faf9f6; color: #181614; font-family: 'Archivo', system-ui, sans-serif">
+
+<header style="padding: 22px 16px 12px; display: flex; flex-direction: column; gap: 12px; border-bottom: 1px solid #e2ded6">
+<div>
+<div style="font-size: 10px; letter-spacing: .26em; text-transform: uppercase; font-weight: 700; color: #8a2318; margin-bottom: 8px">Whole Bible · works offline</div>
+<h1 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 40px; line-height: .95; letter-spacing: -.02em">Search</h1>
+</div>
+<div style="display: flex; gap: 8px">
+<label for="mock-q" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%)">Search words or a reference</label>
+<input id="mock-q" type="search" value="grace" style="flex-grow: 1; min-width: 0; height: 44px; box-sizing: border-box; background: #f1eee7; border: 1px solid #e2ded6; padding: 0 12px; font-family: inherit; font-size: 15px; color: #181614">
+<button aria-label="Search" style="width: 44px; height: 44px; flex-shrink: 0; background: #8a2318; border: none; color: #ffffff; cursor: pointer; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg></button>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr))" role="group" aria-label="Search in">
+<button aria-pressed="true" style="height: 44px; background: #181614; border: 1.5px solid #181614; color: #faf9f6; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer">Verses</button>
+<button style="height: 44px; background: transparent; border: 1.5px solid #181614; border-left: none; color: #181614; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer">My notes</button>
+<button style="height: 44px; background: transparent; border: 1.5px solid #181614; border-left: none; color: #181614; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer">Dictionary</button>
+</div>
+</header>
+
+<div style="padding: 10px 16px 0; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; gap: 8px" role="group" aria-label="Filter by testament">
+<button style="height: 44px; padding: 0 14px; background: transparent; border: 1px solid #e2ded6; color: #181614; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer">All · 159</button>
+<button style="height: 44px; padding: 0 14px; background: transparent; border: 1px solid #e2ded6; color: #181614; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer">Old · 37</button>
+<button aria-pressed="true" style="height: 44px; padding: 0 14px; background: rgba(138,35,24,.07); border: 1.5px solid #8a2318; color: #8a2318; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer">New · 122</button>
+</div>
+<div style="font-size: 12px; color: #6b655c">122 verses in the New Testament · KJV · most in Romans (20)</div>
+</div>
+
+<main style="flex-grow: 1; min-height: 0; overflow: hidden; padding: 10px 16px 0; display: flex; flex-direction: column; gap: 8px">
+
+<a href="#" style="display: block; text-decoration: none; background: #ffffff; border: 1px solid #e2ded6; padding: 12px 14px"><span style="display: block; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #8a2318; margin-bottom: 5px">Luke 2:40</span><span style="display: block; font-family: 'Source Serif 4', Georgia, serif; font-size: 15px; line-height: 1.65; color: #26221e">And the child grew, and waxed strong in spirit, filled with wisdom: and the <strong style="color: #8a2318">grace</strong> of God was upon him.</span></a>
+
+<a href="#" style="display: block; text-decoration: none; background: #ffffff; border: 1px solid #e2ded6; padding: 12px 14px"><span style="display: block; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #8a2318; margin-bottom: 5px">John 1:14</span><span style="display: block; font-family: 'Source Serif 4', Georgia, serif; font-size: 15px; line-height: 1.65; color: #26221e">And the Word was made flesh, and dwelt among us, (and we beheld his glory, the glory as of the only begotten of the Father,) full of <strong style="color: #8a2318">grace</strong> and truth.</span></a>
+
+<a href="#" style="display: block; text-decoration: none; background: #ffffff; border: 1px solid #e2ded6; padding: 12px 14px"><span style="display: block; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #8a2318; margin-bottom: 5px">John 1:16</span><span style="display: block; font-family: 'Source Serif 4', Georgia, serif; font-size: 15px; line-height: 1.65; color: #26221e">And of his fulness have all we received, and <strong style="color: #8a2318">grace</strong> for <strong style="color: #8a2318">grace</strong>.</span></a>
+
+<a href="#" style="display: block; text-decoration: none; background: #ffffff; border: 1px solid #e2ded6; padding: 12px 14px"><span style="display: block; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #8a2318; margin-bottom: 5px">John 1:17</span><span style="display: block; font-family: 'Source Serif 4', Georgia, serif; font-size: 15px; line-height: 1.65; color: #26221e">For the law was given by Moses, but <strong style="color: #8a2318">grace</strong> and truth came by Jesus Christ.</span></a>
+
+</main>
+
+<nav aria-label="Sections" style="display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border-top: 1px solid #e2ded6; background: #faf9f6">
+<button style="height: 64px; background: none; border: none; border-top: 2px solid transparent; color: #6b655c; font-family: inherit; font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>Today</button>
+<button style="height: 64px; background: none; border: none; border-top: 2px solid transparent; color: #6b655c; font-family: inherit; font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V5a2 2 0 0 1 2-2h14v14H6a2 2 0 0 0 0 4h14"></path></svg>Read</button>
+<button style="height: 64px; background: none; border: none; border-top: 2px solid transparent; color: #6b655c; font-family: inherit; font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="3" width="14" height="18" rx="1"></rect><path d="M9 8h6M9 12h6M9 16h3"></path></svg>Notes</button>
+<button style="height: 64px; background: none; border: none; border-top: 2px solid transparent; color: #6b655c; font-family: inherit; font-size: 10px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"></path></svg>Ask</button>
+<button aria-current="page" style="height: 64px; background: none; border: none; border-top: 2px solid #8a2318; color: #8a2318; font-family: inherit; font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"></circle><path d="M20 20l-4.5-4.5"></path></svg>Search</button>
+</nav>
+</div></div><div class="doc spec"><h4>Behaviour</h4><ul>
+<li>Searches the locally stored translation, so it works offline. Run it in a Web Worker and debounce typing by about 200 ms.</li>
+<li>If the query parses as a reference ("john 3:16", "1 cor 13", "rom 8:28-30"), offer "Go to …" as the first result.</li>
+<li>Otherwise match whole words, case-insensitive; quoted text matches a phrase; several words mean all must appear in the verse.</li>
+<li>Scope tabs: Verses, My notes (title, text, tags), Dictionary (the existing word list).</li>
+<li>Testament filter with live counts, a summary line naming the book with the most matches, and results in canonical order. Render the first 50 and load more on scroll. Matched words are bold and accent-coloured.</li>
+<li>A result opens Read at that verse with the verse selected.</li>
+</ul>
+<h4>Acceptance check</h4>
+<p>With margin notes excluded, "grace" in the KJV file in this repo returns <b>159 verses: 37 Old Testament, 122 New Testament, 20 of them in Romans</b>. The first New Testament results are Luke 2:40, John 1:14, John 1:16, John 1:17.</p>
+</div></div>
+</section>
+
+<h2 class="doc" id="screens-b">8 · New features</h2>
+<section class="doc screen" id="s-BibleMap">
+<h3 class="doc">B1 · Your Bible: chapter map (desktop)</h3>
+<div class="doc spec cols"><div><h4>Behaviour</h4><ul>
+<li>One 10px square per chapter, grouped by book, 929 Old Testament and 260 New Testament (1,189 total). Filled accent = read, white with a grey border = not yet. Finished books show their name in bold.</li>
+<li>Data comes from <code>reading_progress</code>. Totals in the header are computed, never stored.</li>
+<li>Tapping a square opens that chapter. On touch screens, tapping a book name opens the chapter picker for that book, because the squares are too small to be reliable touch targets.</li>
+<li>Give each testament block a text alternative ("Genesis: 12 of 50 chapters read", …) for screen readers.</li>
+</ul></div>
+<div><h4>Actions</h4><ul>
+<li><b>Open a chapter I have never read:</b> picks a random unread chapter and opens it.</li>
+<li><b>Build a plan from the empty squares:</b> creates a personal plan covering every unread chapter in canonical order at a pace the user chooses (1 to 4 chapters a day).</li>
+</ul>
+<p>The progress in this mockup is sample data. On phones the two testaments stack and the page scrolls.</p></div>
+</div>
+<div class="frame wide" data-mock="BibleMap"><div style="min-width: 1280px"><div style="min-height: 1060px; box-sizing: border-box; padding: 40px 48px 44px; background: #faf9f6; color: #181614; font-family: 'Archivo', system-ui, sans-serif; display: flex; flex-direction: column; gap: 30px">
+
+<header style="display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 24px; border-bottom: 1px solid #e2ded6; padding-bottom: 24px">
+<div>
+<div style="font-size: 10px; letter-spacing: .26em; text-transform: uppercase; font-weight: 700; color: #8a2318; margin-bottom: 12px">Your Bible</div>
+<h1 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 64px; line-height: .92; letter-spacing: -.02em">Every chapter, on one page</h1>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 32px; align-items: flex-end">
+<div><div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 40px; line-height: 1"><span id="map-read"></span></div><div style="font-size: 12px; color: #6b655c; margin-top: 4px">of 1,189 chapters read</div></div>
+<div><div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 40px; line-height: 1"><span id="map-done"></span></div><div style="font-size: 12px; color: #6b655c; margin-top: 4px">of 66 books finished</div></div>
+<div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px">
+<div style="display: flex; align-items: center; gap: 8px"><div style="width: 12px; height: 12px; background: #8a2318"></div>Read</div>
+<div style="display: flex; align-items: center; gap: 8px"><div style="width: 12px; height: 12px; box-sizing: border-box; background: #ffffff; border: 1px solid #b5ad9f"></div>Not yet</div>
+</div>
+</div>
+</header>
+
+<div style="display: flex; flex-wrap: wrap; gap: 40px">
+
+<section style="flex: 2 1 560px; min-width: 0" role="img" aria-label="Old Testament reading map, one square per chapter">
+<div style="font-size: 10px; letter-spacing: .24em; text-transform: uppercase; font-weight: 600; color: #6b655c; margin-bottom: 14px">Old Testament · 929 chapters</div>
+<div id="map-ot"></div>
+</section>
+
+<section style="flex: 1 1 320px; min-width: 0; display: flex; flex-direction: column; gap: 28px">
+<div role="img" aria-label="New Testament reading map, one square per chapter">
+<div style="font-size: 10px; letter-spacing: .24em; text-transform: uppercase; font-weight: 600; color: #6b655c; margin-bottom: 14px">New Testament · 260 chapters</div>
+<div id="map-nt"></div>
+</div>
+
+<div style="background: #ffffff; border: 1px solid #e2ded6; padding: 20px; display: flex; flex-direction: column; gap: 12px">
+<div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 26px; line-height: 1.1">Where have you never been?</div>
+<div style="font-size: 13px; line-height: 1.6; color: #5e584f">Tap a square to open that chapter. Finished books turn bold. The map fills in by itself as you mark chapters read.</div>
+<button style="height: 44px; background: #8a2318; border: none; color: #ffffff; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer">Open a chapter I have never read</button>
+<button style="height: 44px; background: transparent; border: 1.5px solid #181614; color: #181614; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer">Build a plan from the empty squares</button>
+</div>
+</section>
+
+</div>
+</div></div></div>
+</section>
+<section class="doc screen" id="s-SermonMode">
+<h3 class="doc">B2 · Sermon mode (phone, dark)</h3>
+<div class="pair"><div class="frame phone" data-mock="SermonMode"><div style="width: 390px; height: 844px; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; background: #141210; color: #e6e1d8; font-family: 'Archivo', system-ui, sans-serif">
+
+<header style="padding: 22px 16px 16px; display: flex; flex-direction: column; gap: 14px; border-bottom: 1px solid #3a352f">
+<div style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px">
+<div>
+<div style="font-size: 10px; letter-spacing: .26em; text-transform: uppercase; font-weight: 700; color: #d06a52; margin-bottom: 8px">Sermon mode · screen dimmed</div>
+<h1 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 38px; line-height: .95; letter-spacing: -.02em; color: #f2ede3">Sunday, Nov 22</h1>
+</div>
+<div style="text-align: right">
+<div style="font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; color: #f2ede3">24:16</div>
+<div style="display: flex; align-items: center; justify-content: flex-end; gap: 6px; font-size: 11px; font-weight: 600; color: #d06a52; margin-top: 2px"><div style="width: 8px; height: 8px; border-radius: 50%; background: #d06a52"></div>Recording</div>
+</div>
+</div>
+<div aria-hidden="true" style="display: flex; align-items: center; gap: 3px; height: 34px">
+<div style="flex: 1 1 0; height: 8px; background: #6f6a62"></div><div style="flex: 1 1 0; height: 16px; background: #6f6a62"></div><div style="flex: 1 1 0; height: 26px; background: #6f6a62"></div><div style="flex: 1 1 0; height: 12px; background: #6f6a62"></div><div style="flex: 1 1 0; height: 20px; background: #6f6a62"></div><div style="flex: 1 1 0; height: 30px; background: #6f6a62"></div><div style="flex: 1 1 0; height: 14px; background: #6f6a62"></div><div style="flex: 1 1 0; height: 22px; background: #6f6a62"></div><div style="flex: 1 1 0; height: 10px; background: #6f6a62"></div><div style="flex: 1 1 0; height: 18px; background: #6f6a62"></div><div style="flex: 1 1 0; height: 28px; background: #6f6a62"></div><div style="flex: 1 1 0; height: 12px; background: #6f6a62"></div><div style="flex: 1 1 0; height: 24px; background: #6f6a62"></div><div style="flex: 1 1 0; height: 16px; background: #6f6a62"></div><div style="flex: 1 1 0; height: 8px; background: #6f6a62"></div><div style="flex: 1 1 0; height: 20px; background: #6f6a62"></div><div style="flex: 1 1 0; height: 32px; background: #6f6a62"></div><div style="flex: 1 1 0; height: 14px; background: #6f6a62"></div><div style="flex: 1 1 0; height: 22px; background: #6f6a62"></div><div style="flex: 1 1 0; height: 10px; background: #6f6a62"></div><div style="flex: 1 1 0; height: 26px; background: #d06a52"></div><div style="flex: 1 1 0; height: 18px; background: #d06a52"></div><div style="flex: 1 1 0; height: 30px; background: #d06a52"></div><div style="flex: 1 1 0; height: 12px; background: #d06a52"></div>
+</div>
+<div style="font-size: 12px; color: #a39c90">No signal needed. Everything is kept on this phone and syncs when you are back online.</div>
+</header>
+
+<main style="flex-grow: 1; min-height: 0; overflow: hidden; padding: 14px 16px 0; display: flex; flex-direction: column; gap: 10px">
+
+<div style="display: flex; gap: 8px">
+<label for="mock-ref" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%)">Reference or note</label>
+<input id="mock-ref" type="text" placeholder="Type a reference or a thought…" style="flex-grow: 1; min-width: 0; height: 44px; box-sizing: border-box; background: #211d1a; border: 1px solid #3a352f; padding: 0 12px; font-family: inherit; font-size: 15px; color: #e6e1d8">
+<button style="height: 44px; padding: 0 16px; background: #e6e1d8; border: none; color: #141210; font-family: inherit; font-size: 12.5px; font-weight: 700; cursor: pointer">Pin</button>
+</div>
+
+<div style="font-size: 10px; letter-spacing: .24em; text-transform: uppercase; font-weight: 600; color: #a39c90; margin-top: 4px">Pinned to the recording</div>
+
+<article style="background: #1c1917; border: 1px solid #3a352f; padding: 12px 14px; display: flex; gap: 12px">
+<button aria-label="Play from 4 minutes 12 seconds" style="flex-shrink: 0; width: 52px; height: 44px; background: transparent; border: 1px solid #6f6a62; color: #e6e1d8; font-family: inherit; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer">04:12</button>
+<div><div style="font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #d06a52; margin-bottom: 4px">Romans 8:28</div><div style="font-family: 'Source Serif 4', Georgia, serif; font-size: 14px; line-height: 1.6; color: #d9d3c8">And we know that all things work together for good to them that love God, to them who are the called according to his purpose.</div></div>
+</article>
+
+<article style="background: #1c1917; border: 1px solid #3a352f; padding: 12px 14px; display: flex; gap: 12px">
+<button aria-label="Play from 11 minutes 40 seconds" style="flex-shrink: 0; width: 52px; height: 44px; background: transparent; border: 1px solid #6f6a62; color: #e6e1d8; font-family: inherit; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer">11:40</button>
+<div><div style="font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #a39c90; margin-bottom: 4px">Your note</div><div style="font-size: 14px; line-height: 1.55; color: #e6e1d8">[A thought you typed, pinned to this moment in the audio]</div></div>
+</article>
+
+<article style="background: #1c1917; border: 1px solid #3a352f; padding: 12px 14px; display: flex; gap: 12px">
+<button aria-label="Play from 18 minutes 5 seconds" style="flex-shrink: 0; width: 52px; height: 44px; background: transparent; border: 1px solid #6f6a62; color: #e6e1d8; font-family: inherit; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; cursor: pointer">18:05</button>
+<div><div style="font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #d06a52; margin-bottom: 4px">Romans 8:32</div><div style="font-family: 'Source Serif 4', Georgia, serif; font-size: 14px; line-height: 1.6; color: #d9d3c8">He that spared not his own Son, but delivered him up for us all, how shall he not with him also freely give us all things?</div></div>
+</article>
+
+</main>
+
+<footer style="padding: 12px 16px 18px; border-top: 1px solid #3a352f; display: flex; flex-direction: column; gap: 10px">
+<div style="font-size: 12px; line-height: 1.5; color: #a39c90">When you stop, your pins become one study note with a summary, the key points and one thing to do this week.</div>
+<div style="display: flex; gap: 8px">
+<button style="flex: 1 1 0; height: 48px; background: transparent; border: 1.5px solid #e6e1d8; color: #e6e1d8; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer">Mark this moment</button>
+<button style="flex: 1 1 0; height: 48px; background: #d06a52; border: none; color: #141210; font-family: inherit; font-size: 13px; font-weight: 700; cursor: pointer">Stop and save</button>
+</div>
+</footer>
+</div></div><div class="doc spec"><h4>Behaviour</h4><ul>
+<li>Launched from Today or from the Notes "New" menu. Always uses the dark theme, and requests a screen wake lock while recording.</li>
+<li>Starts an audio recording (reuse the existing MediaRecorder code and its iOS fixes). The timer and level bars reflect the live recording.</li>
+<li><b>Pin:</b> the text box accepts a reference or free text. If it parses as a reference, the pin stores the reference and shows the verse text from the local Bible; otherwise it is stored as a note. Each pin stores the recording offset in seconds.</li>
+<li><b>Mark this moment</b> adds an empty pin at the current offset, to fill in later.</li>
+<li>Tapping a pin's time button during playback seeks the audio to that offset.</li>
+<li><b>Stop and save:</b> uploads the audio to Storage and creates one study note containing the pins in order. When online, the Edge Function adds a summary, key points and one action step drawn only from the pins.</li>
+<li>Must work with no connection: the session, pins and audio blob go to IndexedDB first and sync when online.</li>
+</ul>
+<h4>Out of scope</h4>
+<p>No automatic speech transcription. It would need a separate speech-to-text service; design the tables so a transcript column can be added later.</p>
+</div></div>
+</section>
+<section class="doc screen" id="s-CardStudio">
+<h3 class="doc">B3 · Verse card studio (phone)</h3>
+<div class="pair"><div class="frame phone" data-mock="CardStudio"><div style="width: 390px; height: 844px; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; background: #faf9f6; color: #181614; font-family: 'Archivo', system-ui, sans-serif">
+
+<header style="display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid #e2ded6">
+<button style="height: 44px; padding: 0 4px; background: none; border: none; color: #181614; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer">Cancel</button>
+<div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 22px">Verse card</div>
+<button style="height: 44px; padding: 0 16px; background: #8a2318; border: none; color: #ffffff; font-family: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer">Share</button>
+</header>
+
+<main style="flex-grow: 1; min-height: 0; padding: 16px; display: flex; flex-direction: column; gap: 16px">
+
+<figure aria-label="Card preview" style="margin: 0; width: 358px; height: 358px; box-sizing: border-box; background: #181614; color: #faf9f6; padding: 30px; display: flex; flex-direction: column; justify-content: space-between">
+<div style="font-size: 10px; letter-spacing: .26em; text-transform: uppercase; font-weight: 700; color: #e8a696">John · Chapter Three</div>
+<div style="font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-size: 25px; line-height: 1.25">“For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.”</div>
+<div style="display: flex; align-items: flex-end; justify-content: space-between">
+<div style="font-size: 11px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase">John 3:16 · KJV</div>
+<div style="font-family: 'Instrument Serif', Georgia, serif; font-size: 24px; line-height: 1; color: #e8a696">B.</div>
+</div>
+</figure>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 10px; letter-spacing: .24em; text-transform: uppercase; font-weight: 600; color: #6b655c">Shape</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr))" role="group" aria-label="Card shape">
+<button aria-pressed="true" style="height: 44px; background: #181614; border: 1.5px solid #181614; color: #faf9f6; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer">Square post</button>
+<button style="height: 44px; background: transparent; border: 1.5px solid #181614; border-left: none; color: #181614; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer">Tall story</button>
+<button style="height: 44px; background: transparent; border: 1.5px solid #181614; border-left: none; color: #181614; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer">Wide thumbnail</button>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<div style="font-size: 10px; letter-spacing: .24em; text-transform: uppercase; font-weight: 600; color: #6b655c">Paper</div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px" role="group" aria-label="Card color">
+<button aria-pressed="true" style="height: 52px; background: #181614; border: 2px solid #8a2318; color: #faf9f6; font-family: inherit; font-size: 11.5px; font-weight: 700; cursor: pointer">Ink</button>
+<button style="height: 52px; background: #faf9f6; border: 1px solid #b5ad9f; color: #181614; font-family: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer">Paper</button>
+<button style="height: 52px; background: #f5efdc; border: 1px solid #b5ad9f; color: #2c2013; font-family: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer">Sepia</button>
+<button style="height: 52px; background: #8a2318; border: 1px solid #8a2318; color: #ffffff; font-family: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer">Red</button>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<label style="min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13.5px; border-top: 1px solid #e2ded6; padding-top: 8px">Add my note underneath<input type="checkbox" style="width: 22px; height: 22px; accent-color: #8a2318"></label>
+<label style="min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 13.5px; border-top: 1px solid #e2ded6; padding-top: 8px">Show my handle<input type="checkbox" style="width: 22px; height: 22px; accent-color: #8a2318"></label>
+</div>
+
+</main>
+
+<footer style="padding: 12px 16px 18px; border-top: 1px solid #e2ded6; display: flex; gap: 8px">
+<button style="flex: 1 1 0; height: 48px; background: transparent; border: 1.5px solid #181614; color: #181614; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer">Save to photos</button>
+<button style="flex: 1 1 0; height: 48px; background: transparent; border: 1.5px solid #181614; color: #181614; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer">Copy image</button>
+</footer>
+</div></div><div class="doc spec"><h4>Behaviour</h4><ul>
+<li>Opened from "Share as image" with one verse or a short range (cap at about 400 characters; over that, disable the action with an explanation).</li>
+<li>Render to a canvas at export size: square 1080×1080, tall 1080×1920, wide 1280×720. The on-screen preview is the same canvas scaled down.</li>
+<li>Four papers: Ink (#181614 ground, #faf9f6 text), Paper (#faf9f6 / #181614), Sepia (#f5efdc / #2c2013), Red (#8a2318 / #ffffff). Text auto-sizes to fit with a minimum size; reference and translation always present.</li>
+<li>Optional lines: the user's note under the verse, and a handle set once in Preferences.</li>
+<li>Wait for <code>document.fonts.ready</code> before drawing so Instrument Serif is used.</li>
+<li>Share uses the Web Share API with a PNG file where supported; otherwise download. "Copy image" uses the async Clipboard API where supported and is hidden where it is not.</li>
+</ul>
+</div></div>
+</section>
+<section class="doc screen" id="s-Threads">
+<h3 class="doc">B4 · Threads (phone)</h3>
+<div class="pair"><div class="frame phone" data-mock="Threads"><div style="width: 390px; height: 844px; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; background: #faf9f6; color: #181614; font-family: 'Archivo', system-ui, sans-serif">
+
+<header style="padding: 22px 16px 16px; border-bottom: 1px solid #e2ded6">
+<div style="font-size: 10px; letter-spacing: .26em; text-transform: uppercase; font-weight: 700; color: #8a2318; margin-bottom: 8px">Thread · 5 passages</div>
+<h1 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 46px; line-height: .92; letter-spacing: -.02em">The Lamb</h1>
+<div style="font-size: 13px; line-height: 1.5; color: #5e584f; margin-top: 10px">One idea, followed from Genesis to Revelation. Build your own, or let the AI propose the next link.</div>
+</header>
+
+<main style="flex-grow: 1; min-height: 0; overflow: hidden; padding: 18px 16px 0; display: flex; flex-direction: column">
+
+<a href="#" style="display: flex; gap: 14px; text-decoration: none; color: #181614">
+<span aria-hidden="true" style="flex: 0 0 12px; display: flex; flex-direction: column; align-items: center"><span style="width: 12px; height: 12px; background: #8a2318"></span><span style="flex-grow: 1; width: 1px; background: #b5ad9f"></span></span>
+<span style="display: block; padding-bottom: 18px"><span style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px"><span style="font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #8a2318">Genesis 22:8</span><span style="font-size: 11px; color: #6b655c">The promise</span></span><span style="display: block; font-family: 'Source Serif 4', Georgia, serif; font-size: 15px; line-height: 1.6; color: #26221e">My son, God will provide himself a lamb for a burnt offering…</span></span>
+</a>
+
+<a href="#" style="display: flex; gap: 14px; text-decoration: none; color: #181614">
+<span aria-hidden="true" style="flex: 0 0 12px; display: flex; flex-direction: column; align-items: center"><span style="width: 12px; height: 12px; background: #8a2318"></span><span style="flex-grow: 1; width: 1px; background: #b5ad9f"></span></span>
+<span style="display: block; padding-bottom: 18px"><span style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px"><span style="font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #8a2318">Exodus 12:13</span><span style="font-size: 11px; color: #6b655c">The Passover</span></span><span style="display: block; font-family: 'Source Serif 4', Georgia, serif; font-size: 15px; line-height: 1.6; color: #26221e">…and when I see the blood, I will pass over you…</span></span>
+</a>
+
+<a href="#" style="display: flex; gap: 14px; text-decoration: none; color: #181614">
+<span aria-hidden="true" style="flex: 0 0 12px; display: flex; flex-direction: column; align-items: center"><span style="width: 12px; height: 12px; background: #8a2318"></span><span style="flex-grow: 1; width: 1px; background: #b5ad9f"></span></span>
+<span style="display: block; padding-bottom: 18px"><span style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px"><span style="font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #8a2318">Isaiah 53:7</span><span style="font-size: 11px; color: #6b655c">The prophecy</span></span><span style="display: block; font-family: 'Source Serif 4', Georgia, serif; font-size: 15px; line-height: 1.6; color: #26221e">…he is brought as a lamb to the slaughter, and as a sheep before her shearers is dumb…</span></span>
+</a>
+
+<a href="#" style="display: flex; gap: 14px; text-decoration: none; color: #181614">
+<span aria-hidden="true" style="flex: 0 0 12px; display: flex; flex-direction: column; align-items: center"><span style="width: 12px; height: 12px; background: #8a2318"></span><span style="flex-grow: 1; width: 1px; background: #b5ad9f"></span></span>
+<span style="display: block; padding-bottom: 18px"><span style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px"><span style="font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #8a2318">John 1:29</span><span style="font-size: 11px; color: #6b655c">The arrival</span></span><span style="display: block; font-family: 'Source Serif 4', Georgia, serif; font-size: 15px; line-height: 1.6; color: #26221e">Behold the Lamb of God, which taketh away the sin of the world.</span></span>
+</a>
+
+<a href="#" style="display: flex; gap: 14px; text-decoration: none; color: #181614">
+<span aria-hidden="true" style="flex: 0 0 12px; display: flex; flex-direction: column; align-items: center"><span style="width: 12px; height: 12px; background: #8a2318"></span><span style="flex-grow: 1; width: 1px; background: #b5ad9f"></span></span>
+<span style="display: block; padding-bottom: 18px"><span style="display: flex; align-items: baseline; gap: 10px; margin-bottom: 4px"><span style="font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #8a2318">Revelation 5:12</span><span style="font-size: 11px; color: #6b655c">The throne</span></span><span style="display: block; font-family: 'Source Serif 4', Georgia, serif; font-size: 15px; line-height: 1.6; color: #26221e">Worthy is the Lamb that was slain to receive power, and riches, and wisdom…</span></span>
+</a>
+
+<div style="display: flex; gap: 14px; align-items: center">
+<span aria-hidden="true" style="flex: 0 0 12px; height: 12px; box-sizing: border-box; border: 1.5px dashed #6b655c"></span>
+<span style="font-size: 13px; color: #5e584f">Next link: add one yourself, or ask for a suggestion</span>
+</div>
+
+</main>
+
+<footer style="padding: 12px 16px 18px; border-top: 1px solid #e2ded6; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; gap: 8px">
+<button style="flex: 1 1 0; height: 48px; background: transparent; border: 1.5px solid #181614; color: #181614; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer">Add a passage</button>
+<button style="flex: 1 1 0; height: 48px; background: #181614; border: none; color: #faf9f6; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer">Suggest the next link</button>
+</div>
+<button style="height: 48px; background: #8a2318; border: none; color: #ffffff; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer">Turn this thread into a lesson outline</button>
+</footer>
+</div></div><div class="doc spec"><h4>Behaviour</h4><ul>
+<li>A thread is a titled, ordered list of passages that trace one idea through Scripture. The list of threads lives under Notes or Today; this is the detail view.</li>
+<li>Each link has a reference (verse or range), an optional short label, and shows an excerpt from the local Bible. Tapping opens the passage in Read.</li>
+<li><b>Add a passage:</b> reference input with the same parser as search. Also offer "Add to thread" in the verse sheet.</li>
+<li>Reorder by drag handle, with move up/down buttons as the keyboard and screen-reader alternative. Delete with undo.</li>
+<li><b>Suggest the next link:</b> sends the thread title and current links to the Edge Function, which returns up to three candidate references with a one-line reason each. Validate every returned reference against the local Bible before showing it; the user picks or dismisses.</li>
+<li><b>Turn this thread into a lesson outline:</b> creates a study note with the passages in order, a heading per link and discussion prompts from the AI.</li>
+</ul>
+</div></div>
+</section>
+<section class="doc screen" id="s-Memory">
+<h3 class="doc">B5 · Memory trainer (phone, working demo)</h3>
+<div class="pair"><div class="frame phone" data-mock="Memory"><div style="width: 390px; height: 844px; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; background: #faf9f6; color: #181614; font-family: 'Archivo', system-ui, sans-serif">
+
+<header style="padding: 22px 16px 16px; border-bottom: 1px solid #e2ded6; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px">
+<div>
+<div style="font-size: 10px; letter-spacing: .26em; text-transform: uppercase; font-weight: 700; color: #8a2318; margin-bottom: 8px">Memory · verse 1 of 2 due</div>
+<h1 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 46px; line-height: .92; letter-spacing: -.02em">John 3:16</h1>
+</div>
+<div style="font-size: 12px; font-weight: 600; color: #5e584f; padding-bottom: 4px">KJV</div>
+</header>
+
+<main style="flex-grow: 1; min-height: 0; padding: 20px 16px 0; display: flex; flex-direction: column; gap: 20px">
+
+<div style="display: flex; align-items: center; justify-content: space-between; gap: 12px">
+<div style="font-size: 13.5px; font-weight: 600"><span id="mem-label"></span></div>
+<div style="display: flex; align-items: center; gap: 8px">
+<div style="display: flex; gap: 4px" aria-hidden="true">
+<span id="mem-dots" style="display: flex; gap: 4px"></span>
+</div>
+<div style="font-size: 12px; color: #5e584f">Step <span id="mem-step"></span></div>
+</div>
+</div>
+
+<div style="background: #ffffff; border: 1px solid #e2ded6; padding: 22px 20px; min-height: 300px; box-sizing: border-box">
+<div style="display: flex; flex-wrap: wrap; column-gap: 7px; row-gap: 2px; font-family: 'Source Serif 4', Georgia, serif; font-size: 23px; line-height: 1.7">
+<span id="mem-words" style="display: contents"></span>
+</div>
+</div>
+
+<div style="display: flex; gap: 8px">
+<button id="mem-easier" style="flex: 1 1 0; height: 48px; background: transparent; border: 1.5px solid #181614; color: #181614; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer">Show more</button>
+<button id="mem-harder" style="flex: 1 1 0; height: 48px; background: #181614; border: none; color: #faf9f6; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer">Hide more</button>
+</div>
+
+<div style="font-size: 13px; line-height: 1.55; color: #5e584f">Say it aloud at each step. Words drop out a few at a time until only first letters are left, then none.</div>
+
+</main>
+
+<footer style="padding: 12px 16px 18px; border-top: 1px solid #e2ded6; display: flex; flex-direction: column; gap: 10px">
+<div style="font-size: 10px; letter-spacing: .24em; text-transform: uppercase; font-weight: 600; color: #6b655c">How did it go?</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<button style="height: 56px; background: transparent; border: 1px solid #b5ad9f; color: #181614; font-family: inherit; cursor: pointer"><span style="display: block; font-size: 13px; font-weight: 600">Shaky</span><span style="display: block; font-size: 11px; color: #5e584f; margin-top: 2px">again tomorrow</span></button>
+<button style="height: 56px; background: transparent; border: 1px solid #b5ad9f; color: #181614; font-family: inherit; cursor: pointer"><span style="display: block; font-size: 13px; font-weight: 600">Got it</span><span style="display: block; font-size: 11px; color: #5e584f; margin-top: 2px">in 3 days</span></button>
+<button style="height: 56px; background: #8a2318; border: 1px solid #8a2318; color: #ffffff; font-family: inherit; cursor: pointer"><span style="display: block; font-size: 13px; font-weight: 600">By heart</span><span style="display: block; font-size: 11px; margin-top: 2px">in a week</span></button>
+</div>
+</footer>
+</div></div><div class="doc spec"><h4>Behaviour</h4><ul>
+<li>The mockup on the left works: use "Hide more" and "Show more".</li>
+<li>Four steps: full text; every third word hidden; every other word hidden; first letters only. A hidden word keeps its first letter and punctuation, the rest becomes dots, and it is drawn in the accent colour.</li>
+<li>Verses enter the queue from "Memorize" in the verse sheet, due immediately.</li>
+<li>Self-rating schedules the next review: Shaky → 1 day; Got it → 3 days; By heart → 7 days, then doubling on each further "By heart" (14, 28, …, capped at 120). Shaky resets the interval to 1 day.</li>
+<li>After rating, advance to the next due verse; when none are left, show a done state and return to Today.</li>
+<li>Text always comes from the translation the verse was saved in.</li>
+</ul>
+</div></div>
+</section>
+<section class="doc screen" id="s-FamilyTable">
+<h3 class="doc">B6 · Family table (phone)</h3>
+<div class="pair"><div class="frame phone" data-mock="FamilyTable"><div style="width: 390px; height: 844px; box-sizing: border-box; overflow: hidden; display: flex; flex-direction: column; background: #faf9f6; color: #181614; font-family: 'Archivo', system-ui, sans-serif">
+
+<header style="padding: 22px 16px 16px; border-bottom: 1px solid #e2ded6">
+<div style="font-size: 10px; letter-spacing: .26em; text-transform: uppercase; font-weight: 700; color: #8a2318; margin-bottom: 8px">Tonight · John 3:14–21</div>
+<h1 style="margin: 0; font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; font-size: 46px; line-height: .92; letter-spacing: -.02em">Family table</h1>
+<div style="font-size: 13px; line-height: 1.5; color: #5e584f; margin-top: 10px">One passage, one question for every age at the table.</div>
+</header>
+
+<main style="flex-grow: 1; min-height: 0; overflow: hidden; padding: 14px 16px 0; display: flex; flex-direction: column; gap: 12px">
+
+<section style="background: #ffffff; border: 1px solid #e2ded6; padding: 14px; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; align-items: baseline; gap: 10px">
+<div style="font-size: 10px; letter-spacing: .24em; text-transform: uppercase; font-weight: 600; color: #6b655c">Reading together</div>
+<div style="font-size: 12px; font-weight: 600">2 of 4 have read</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px">
+<div style="display: flex; flex-direction: column; align-items: center; gap: 5px"><div style="width: 44px; height: 44px; background: #8a2318; color: #ffffff; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Read"><path d="M5 12l5 5 9-10"></path></svg></div><span style="font-size: 11.5px; font-weight: 600">You</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 5px"><div style="width: 44px; height: 44px; background: #8a2318; color: #ffffff; display: flex; align-items: center; justify-content: center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Read"><path d="M5 12l5 5 9-10"></path></svg></div><span style="font-size: 11.5px; font-weight: 600">[Name]</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 5px"><div style="width: 44px; height: 44px; box-sizing: border-box; border: 1.5px solid #6b655c" role="img" aria-label="Not yet read"></div><span style="font-size: 11.5px; font-weight: 600">[Name]</span></div>
+<div style="display: flex; flex-direction: column; align-items: center; gap: 5px"><div style="width: 44px; height: 44px; box-sizing: border-box; border: 1.5px solid #6b655c" role="img" aria-label="Not yet read"></div><span style="font-size: 11.5px; font-weight: 600">[Name]</span></div>
+</div>
+</section>
+
+<div style="font-size: 10px; letter-spacing: .24em; text-transform: uppercase; font-weight: 600; color: #6b655c; margin-top: 2px">Table questions</div>
+
+<section style="background: #ffffff; border: 1px solid #e2ded6; padding: 12px 14px">
+<div style="font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #8a2318; margin-bottom: 5px">Little ones</div>
+<div style="font-family: 'Source Serif 4', Georgia, serif; font-size: 15px; line-height: 1.55; color: #26221e">God gave the world a gift because he loves us. What is the best gift anyone has ever given you?</div>
+</section>
+
+<section style="background: #ffffff; border: 1px solid #e2ded6; padding: 12px 14px">
+<div style="font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #8a2318; margin-bottom: 5px">Teens</div>
+<div style="font-family: 'Source Serif 4', Georgia, serif; font-size: 15px; line-height: 1.55; color: #26221e">Verse 19 says people “loved darkness rather than light.” Why would someone avoid the light even when it is good for them?</div>
+</section>
+
+<section style="background: #ffffff; border: 1px solid #e2ded6; padding: 12px 14px">
+<div style="font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #8a2318; margin-bottom: 5px">Adults</div>
+<div style="font-family: 'Source Serif 4', Georgia, serif; font-size: 15px; line-height: 1.55; color: #26221e">Israel looked at the serpent on the pole and lived (Numbers 21:9). How does that picture change the way you read verse 16?</div>
+</section>
+
+</main>
+
+<footer style="padding: 12px 16px 18px; border-top: 1px solid #e2ded6; display: flex; gap: 8px">
+<button style="flex: 1 1 0; height: 48px; background: transparent; border: 1.5px solid #181614; color: #181614; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer">New questions</button>
+<button style="flex: 1 1 0; height: 48px; background: #8a2318; border: none; color: #ffffff; font-family: inherit; font-size: 13px; font-weight: 600; cursor: pointer">Read it aloud</button>
+</footer>
+</div></div><div class="doc spec"><h4>Behaviour</h4><ul>
+<li>Depends on Phase 1 sign-in. A household is created by one user, who invites others by email; each member has their own account and their own notes and highlights.</li>
+<li>The household shares one reading plan. "Tonight" is that plan's reading for today.</li>
+<li>The members row shows who has marked tonight's reading as read: a filled square with a check mark, or an empty outlined square. Names come from each member's profile; "[Name]" here is a placeholder.</li>
+<li><b>Table questions:</b> three questions for the passage, one each for little ones, teens and adults, generated by the Edge Function from the passage text and cached per household, passage and day so everyone sees the same ones. "New questions" regenerates.</li>
+<li><b>Read it aloud:</b> reads the passage with the browser's speech synthesis, with play/pause and a speed control.</li>
+<li>Members can see each other's read status only. Notes and highlights stay private unless a later phase adds explicit sharing.</li>
+</ul>
+</div></div>
+</section>
+
+<h2 class="doc" id="done">9 · Definition of done (every phase)</h2>
+<div class="doc">
+<ul>
+<li><code>npm run build</code> and ESLint pass with no new warnings; the Vercel preview deploys.</li>
+<li>Checked at 390px, 820px and 1440px wide, in light, dark and sepia.</li>
+<li>Keyboard-only pass through every new control; visible focus; text contrast ≥ 4.5:1; state never shown by colour alone.</li>
+<li>Works offline where the phase says so, and recovers cleanly when the connection returns.</li>
+<li>Each new table has RLS enabled and a policy; the Supabase security advisor shows no new findings for this app's tables.</li>
+<li>Migrations are in the repo and match the live schema. No secret is committed.</li>
+<li>A short entry in a real <code>README.md</code> describing what the phase added and how to run it.</li>
+</ul>
+</div>
+
+<h2 class="doc" id="open">10 · Open questions for Mike</h2>
+<div class="doc">
+<ol>
+<li><b>Sign-in method:</b> emailed magic link, or email and password? Default if unanswered: magic link.</li>
+<li><b>Anthropic key:</b> the existing key should be rotated once the Edge Function is live, since it may be inside installers built earlier. Confirm before rotating.</li>
+<li><b>Electron build:</b> keep the Windows desktop app, or retire it in favour of the installable PWA?</li>
+<li><b>More translations:</b> which public-domain texts beyond KJV and ASV, if any (for example WEB, YLT, Darby)?</li>
+<li><b>Cross-reference and Strong's sources:</b> approve the specific files and their licences before they are bundled (Phase 6).</li>
+<li><b>Family table:</b> who is in the household, and should children have their own sign-in or a shared device profile?</li>
+</ol>
+</div>
+
+</div>
+
+<script>
+// Mockup B1: chapter map (sample progress)
+(function () {
+  var OT = [["Genesis",50],["Exodus",40],["Leviticus",27],["Numbers",36],["Deuteronomy",34],["Joshua",24],["Judges",21],["Ruth",4],["1 Samuel",31],["2 Samuel",24],["1 Kings",22],["2 Kings",25],["1 Chronicles",29],["2 Chronicles",36],["Ezra",10],["Nehemiah",13],["Esther",10],["Job",42],["Psalms",150],["Proverbs",31],["Ecclesiastes",12],["Song of Solomon",8],["Isaiah",66],["Jeremiah",52],["Lamentations",5],["Ezekiel",48],["Daniel",12],["Hosea",14],["Joel",3],["Amos",9],["Obadiah",1],["Jonah",4],["Micah",7],["Nahum",3],["Habakkuk",3],["Zephaniah",3],["Haggai",2],["Zechariah",14],["Malachi",4]];
+  var NT = [["Matthew",28],["Mark",16],["Luke",24],["John",21],["Acts",28],["Romans",16],["1 Corinthians",16],["2 Corinthians",13],["Galatians",6],["Ephesians",6],["Philippians",4],["Colossians",4],["1 Thessalonians",5],["2 Thessalonians",3],["1 Timothy",6],["2 Timothy",4],["Titus",3],["Philemon",1],["Hebrews",13],["James",5],["1 Peter",5],["2 Peter",3],["1 John",5],["2 John",1],["3 John",1],["Jude",1],["Revelation",22]];
+  var READ = {"Genesis":12,"Ruth":4,"Psalms":23,"Proverbs":8,"Jonah":4,"John":3,"Romans":8,"Ephesians":6,"Philippians":4,"James":5};
+  var readCount = 0, booksDone = 0;
+  function build(list, host) {
+    list.forEach(function (pair) {
+      var n = READ[pair[0]] || 0, done = n >= pair[1];
+      readCount += n; if (done) booksDone += 1;
+      var row = document.createElement("div");
+      row.style.cssText = "display:flex;gap:10px;align-items:flex-start;margin-bottom:5px";
+      var name = document.createElement("span");
+      name.style.cssText = "flex:0 0 112px;font-size:11px;line-height:12px;font-weight:" + (done ? 700 : 400);
+      name.textContent = pair[0];
+      var cells = document.createElement("div");
+      cells.style.cssText = "display:flex;flex-wrap:wrap;gap:2px";
+      for (var i = 1; i <= pair[1]; i++) {
+        var c = document.createElement("div"), on = i <= n;
+        c.style.cssText = "width:10px;height:10px;box-sizing:border-box;background:" + (on ? "#8a2318" : "#ffffff") + ";border:1px solid " + (on ? "#8a2318" : "#b5ad9f");
+        cells.appendChild(c);
+      }
+      row.appendChild(name); row.appendChild(cells); host.appendChild(row);
+    });
+  }
+  build(OT, document.getElementById("map-ot"));
+  build(NT, document.getElementById("map-nt"));
+  document.getElementById("map-read").textContent = readCount;
+  document.getElementById("map-done").textContent = booksDone;
+})();
+
+// Mockup B5: memory trainer (working demo of the four steps)
+(function () {
+  var level = 2;
+  var text = "For God so loved the world, that he gave his only begotten Son, that whosoever believeth in him should not perish, but have everlasting life.";
+  var labels = ["Read it through", "Every third word hidden", "Every other word hidden", "First letters only"];
+  function draw() {
+    var host = document.getElementById("mem-words"); host.textContent = "";
+    text.split(" ").forEach(function (w, i) {
+      var hide = level === 1 ? i % 3 === 2 : level === 2 ? i % 2 === 1 : level === 3;
+      var s = document.createElement("span");
+      if (hide) {
+        var m = w.match(/^([A-Za-z])([A-Za-z]*)(.*)$/);
+        s.textContent = m ? m[1] + m[2].replace(/./g, "·") + m[3] : w;
+        s.style.color = "#8a2318";
+      } else { s.textContent = w; s.style.color = "#26221e"; }
+      host.appendChild(s);
+    });
+    var dots = document.getElementById("mem-dots"); dots.textContent = "";
+    for (var d = 0; d < 4; d++) {
+      var el = document.createElement("span");
+      el.style.cssText = "display:block;width:22px;height:6px;background:" + (d <= level ? "#8a2318" : "#d8d2c6");
+      dots.appendChild(el);
+    }
+    document.getElementById("mem-label").textContent = labels[level];
+    document.getElementById("mem-step").textContent = (level + 1) + " of 4";
+  }
+  document.getElementById("mem-harder").addEventListener("click", function () { level = Math.min(3, level + 1); draw(); });
+  document.getElementById("mem-easier").addEventListener("click", function () { level = Math.max(0, level - 1); draw(); });
+  draw();
+})();
+</script>
+</body>
+</html>

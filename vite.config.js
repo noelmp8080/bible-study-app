@@ -19,13 +19,13 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon-32.png', 'apple-touch-icon.png'],
       manifest: {
-        name: 'Study Bible',
-        short_name: 'Study Bible',
-        description: 'KJV Bible with highlights, notes, and AI Scholar',
-        theme_color: '#060c1c',
-        background_color: '#060c1c',
+        name: 'The Bible Study App',
+        short_name: 'Bible Study',
+        description: 'Read, search and study the Bible offline, with highlights, notes, reading plans and an AI study assistant.',
+        // "The Journal" paper tone; no orientation lock, so tablets and desktops rotate freely.
+        theme_color: '#faf9f6',
+        background_color: '#faf9f6',
         display: 'standalone',
-        orientation: 'portrait',
         scope: '/',
         start_url: '/',
         icons: [
@@ -36,7 +36,27 @@ export default defineConfig({
         ]
       },
       workbox: {
-        maximumFileSizeToCacheInBytes: 6000000,
+        // The app shell, bundled fonts and icons are precached. The Bible text
+        // is not: it is downloaded once and kept in IndexedDB (see src/lib/bible.js).
+        globPatterns: ['**/*.{js,css,html,woff2,png,ico}'],
+        // Only Latin font subsets are precached; the others load on demand if ever needed.
+        globIgnores: ['data/**', '**/*-{cyrillic,cyrillic-ext,greek,greek-ext,vietnamese}-*.woff2'],
+        maximumFileSizeToCacheInBytes: 3000000,
+        navigateFallbackDenylist: [new RegExp('^/data/')],
+        runtimeCaching: [
+          {
+            // Study datasets (cross-references, lexicon), fetched on demand.
+            urlPattern: ({ url, sameOrigin }) => sameOrigin && url.pathname.startsWith('/data/study/'),
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'study-data', expiration: { maxEntries: 200 } },
+          },
+          {
+            // ASV chapters: public-domain text that never changes.
+            urlPattern: ({ url }) => url.origin === 'https://bible-api.com',
+            handler: 'CacheFirst',
+            options: { cacheName: 'bible-api', expiration: { maxEntries: 1300 }, cacheableResponse: { statuses: [200] } },
+          },
+        ],
       },
     })
   ],
