@@ -52,9 +52,7 @@ export function useReadAloud(verses, { onVerse, onNotice } = {}) {
     run.current++;
     const audio = audioRef.current;
     if (audio) { audio.ontimeupdate = audio.onended = audio.onerror = null; audio.pause(); }
-    // Only touch the device's speech engine when it is the one reading. In an
-    // iPad Home Screen app the natural voice's player reported "playing" and
-    // never started; waking the speech engine first is the suspected cause.
+    // Only touch the device's speech engine when it is the one reading.
     if (mode.current === "device") window.speechSynthesis.cancel();
     mode.current = null;
   }, []);
@@ -155,6 +153,9 @@ export function useReadAloud(verses, { onVerse, onNotice } = {}) {
       // A phone can report "playing" and never start. Check that the clock
       // really moves: nudge the player once, then give way to the device voice
       // and say so, rather than sit silent on the first verse.
+      // Seen for real in Home Screen web apps on iOS and iPadOS 26.0 to 26.1,
+      // where no audio starts once the app has been closed and reopened
+      // (WebKit bug 295518, fixed in 26.2). Nothing on the page can undo it.
       const from = audio.currentTime;
       const stuck = () => id === run.current && live === k && !audio.paused && !audio.ended && audio.currentTime <= from + 0.05;
       setTimeout(() => {
@@ -164,7 +165,9 @@ export function useReadAloud(verses, { onVerse, onNotice } = {}) {
         setTimeout(() => {
           if (!stuck()) return;
           const where = `${audio.readyState}-${audio.networkState}-${document.visibilityState}${window.navigator.standalone ? "-app" : ""}`;
-          toDevice(new Error(`This device would not start the natural voice audio (${where}). Using this device's voice instead.`));
+          toDevice(new Error(window.navigator.standalone
+            ? `This Home Screen app could not start the natural voice (${where}). Updating iOS or iPadOS to 26.2 or later fixes it; until then it plays in Safari. Using this device's voice instead.`
+            : `This device would not start the natural voice audio (${where}). Using this device's voice instead.`));
         }, 2500);
       }, 3000);
     };
